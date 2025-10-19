@@ -6,12 +6,15 @@ export type AuthStackParamList = {
   Login: undefined;
   Signup: undefined;
 };
-
+export type AuthNavigationProp = NativeStackNavigationProp<AuthStackParamList>;
 // �?nh nghia c�c m�n h�nh trong lu?ng ch�nh c?a ?ng d?ng (d� dang nh?p)
 export type AppTabParamList = {
   Home: undefined;
   Profile: undefined;
 };
+export type PostLoginStackParamList = {
+  UserProfile: undefined;
+  UserGoal: undefined;
+};
 
-// Type cho navigation prop d? s? d?ng v?i hook useNavigation trong c�c m�n h�nh Auth
-export type AuthNavigationProp = NativeStackNavigationProp<AuthStackParamList>;
+export type PostLoginOnboardingNavigationProp = NativeStackNavigationProp<PostLoginStackParamList>;

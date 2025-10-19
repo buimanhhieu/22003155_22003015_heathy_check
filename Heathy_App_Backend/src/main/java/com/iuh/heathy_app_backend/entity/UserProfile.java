@@ -20,4 +20,5 @@ public class UserProfile {
     private LocalDate dateOfBirth;
     private Double heightCm;
     private Double weightKg;
+    private String gender;
 }

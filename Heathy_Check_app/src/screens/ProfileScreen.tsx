@@ -9,9 +9,9 @@ const ProfileScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Avatar.Text size={80} label={userInfo?.username.charAt(0).toUpperCase() || 'A'} style={styles.avatar} />
-      <Text variant="headlineMedium" style={styles.title}>Trang cá nhân</Text>
-      <Text variant="titleMedium">Tên tài kho?n: {userInfo?.username}</Text>
+      <Avatar.Text size={80} label={userInfo?.fullName.charAt(0).toUpperCase() || 'A'} style={styles.avatar} />
+      <Text variant="headlineMedium" style={styles.title}>Trang cï¿½ nhï¿½n</Text>
+      <Text variant="titleMedium">Tï¿½n tï¿½i kho?n: {userInfo?.fullName}</Text>
       <Text variant="titleMedium">Email: {userInfo?.email}</Text>
     </View>
   );

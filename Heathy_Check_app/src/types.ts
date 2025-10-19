@@ -1,17 +1,18 @@
-// File này d?nh nghia các ki?u d? li?u dùng chung trong ?ng d?ng, d?c bi?t là cho API responses/requests.
+// File nï¿½y d?nh nghia cï¿½c ki?u d? li?u dï¿½ng chung trong ?ng d?ng, d?c bi?t lï¿½ cho API responses/requests.
 
-// DTO cho response khi dang nh?p thành công
+// DTO cho response khi dang nh?p thï¿½nh cï¿½ng
 export interface AuthResponse {
   token: string;
   type: string;
   id: number;
-  username: string;
+  fullName: string;
   email: string;
 }
 
-// DTO ch?a thông tin user co b?n
+// DTO ch?a thï¿½ng tin user co b?n
 export interface UserInfo {
   id: number;
-  username: string;
   email: string;
+  fullName: string;
+  token: string; 
 }

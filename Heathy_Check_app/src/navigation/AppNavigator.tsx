@@ -8,19 +8,31 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { AuthContext } from "../context/AuthContext";
-import { AuthStackParamList, AppTabParamList } from "./types";
+import {
+  AuthStackParamList,
+  AppTabParamList,
+  PostLoginStackParamList,
+} from "./types"; // Giả sử bạn có PostLoginStackParamList
 
-// Import all your screens
+// Import tất cả các màn hình
 import OnboardingScreen from "../screens/OnboardingScreen";
 import LoginScreen from "../screens/LoginScreen";
 import SignupScreen from "../screens/SignupScreen";
 import HomeScreen from "../screens/HomeScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import LoadingScreen from "../screens/LoadingScreen";
+import UserProfileScreen from "../screens/UserProfileScreen";
+import UserGoalScreen from "../screens/UserGoalScreen";
 
+// Khởi tạo các Stack và Tab Navigator
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
+const PostLoginStack = createNativeStackNavigator<PostLoginStackParamList>();
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
+/**
+ * Luồng 1: Xác thực (Khi chưa đăng nhập)
+ * Quyết định hiển thị Onboarding hay Login dựa trên isFirstLaunch.
+ */
 function AuthFlow({ isFirstLaunch }: { isFirstLaunch: boolean }) {
   return (
     <AuthStack.Navigator
@@ -34,6 +46,21 @@ function AuthFlow({ isFirstLaunch }: { isFirstLaunch: boolean }) {
   );
 }
 
+/**
+ * Luồng 2: Cập nhật thông tin sau khi đăng nhập lần đầu
+ */
+function PostLoginOnboardingFlow() {
+  return (
+    <PostLoginStack.Navigator screenOptions={{ headerShown: false }}>
+      <PostLoginStack.Screen name="UserProfile" component={UserProfileScreen} />
+      <PostLoginStack.Screen name="UserGoal" component={UserGoalScreen} />
+    </PostLoginStack.Navigator>
+  );
+}
+
+/**
+ * Luồng 3: Ứng dụng chính (Sau khi đã đăng nhập và hoàn thành profile)
+ */
 function AppFlow() {
   return (
     <Tab.Navigator
@@ -67,36 +94,42 @@ function AppFlow() {
   );
 }
 
+/**
+ * Component Navigator chính
+ * Quyết định hiển thị luồng nào dựa trên trạng thái của người dùng.
+ */
 const AppNavigator: React.FC = () => {
-  const { isLoading: isAuthLoading, userToken } = useContext(AuthContext);
+  const { isLoading, userToken, isProfileComplete } = useContext(AuthContext);
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // This effect runs once when the navigator is mounted
+    // Kiểm tra xem đây có phải là lần đầu mở app không
     AsyncStorage.getItem("hasLaunched").then((value) => {
       if (value === null) {
-        // If 'hasLaunched' is not set, it's the first launch
-        AsyncStorage.setItem("hasLaunched", "true"); // Set the flag for future launches
+        AsyncStorage.setItem("hasLaunched", "true");
         setIsFirstLaunch(true);
       } else {
-        // If the flag exists, it's not the first launch
         setIsFirstLaunch(false);
       }
     });
-    // The duplicated block has been removed from here
   }, []);
 
-  // Show a loading screen while checking auth status OR first launch status
-  if (isAuthLoading || isFirstLaunch === null) {
+  // Hiển thị màn hình chờ trong khi kiểm tra trạng thái
+  if (isLoading || isFirstLaunch === null || isProfileComplete === null) {
     return <LoadingScreen />;
   }
 
   return (
     <NavigationContainer>
       {userToken !== null ? (
-        <AppFlow />
+        // Nếu đã đăng nhập, kiểm tra xem profile đã hoàn thành chưa
+        isProfileComplete ? (
+          <AppFlow />
+        ) : (
+          <PostLoginOnboardingFlow />
+        )
       ) : (
-        // Pass the first launch status to the AuthFlow
+        // Nếu chưa đăng nhập, vào luồng xác thực
         <AuthFlow isFirstLaunch={isFirstLaunch} />
       )}
     </NavigationContainer>

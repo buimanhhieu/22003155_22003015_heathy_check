@@ -28,9 +28,7 @@ public class AuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<MessageResponse> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
-        // Ủy quyền toàn bộ logic đăng ký cho AuthService
         MessageResponse response = authService.registerUser(signUpRequest);
-        // Kiểm tra xem có lỗi không để trả về badRequest hoặc ok
         if (response.getMessage().startsWith("Error:")) {
             return ResponseEntity.badRequest().body(response);
         }

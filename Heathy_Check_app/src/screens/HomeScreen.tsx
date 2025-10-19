@@ -8,11 +8,11 @@ const HomeScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Text variant="headlineMedium" style={styles.title}>Chào m?ng tr? l?i!</Text>
-      <Text variant="titleLarge" style={styles.text}>Tài kho?n: {userInfo?.username}</Text>
+      <Text variant="headlineMedium" style={styles.title}>Chï¿½o m?ng tr? l?i!</Text>
+      <Text variant="titleLarge" style={styles.text}>Tï¿½i kho?n: {userInfo?.fullName}</Text>
       <Text variant="bodyMedium" style={styles.text}>Email: {userInfo?.email}</Text>
       <Button mode="contained" onPress={logout} style={{ marginTop: 20 }}>
-        Ðang xu?t
+        ï¿½ang xu?t
       </Button>
     </View>
   );
