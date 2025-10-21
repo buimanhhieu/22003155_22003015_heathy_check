@@ -18,6 +18,10 @@ public class UserProfile {
     private User user;
 
     private LocalDate dateOfBirth;
+    
+    @Column(columnDefinition = "TEXT")
+    private String avatar;
+    
     private Double heightCm;
     private Double weightKg;
     private String gender;

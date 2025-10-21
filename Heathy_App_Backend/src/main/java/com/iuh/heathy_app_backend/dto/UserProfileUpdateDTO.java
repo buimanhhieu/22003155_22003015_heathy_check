@@ -12,6 +12,8 @@ public class UserProfileUpdateDTO {
     @NotNull(message = "Date of birth cannot be null.")
     private LocalDate dateOfBirth;
 
+    private String avatar;
+
     @NotNull(message = "Height cannot be null.")
     @Min(value = 100, message = "Height must be at least 100cm.")
     @Max(value = 250, message = "Height cannot exceed 250cm.")

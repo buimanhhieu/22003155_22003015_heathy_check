@@ -1,11 +1,11 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Avatar } from 'react-native-paper';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 
 const ProfileScreen: React.FC = () => {
-    const { userInfo } = useContext(AuthContext);
+    const { userInfo } = useAuth();
 
   return (
     <View style={styles.container}>

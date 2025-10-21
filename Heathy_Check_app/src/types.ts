@@ -1,6 +1,6 @@
-// File n�y d?nh nghia c�c ki?u d? li?u d�ng chung trong ?ng d?ng, d?c bi?t l� cho API responses/requests.
+// File này định nghĩa các kiểu dữ liệu dùng chung trong ứng dụng, đặc biệt là cho API responses/requests.
 
-// DTO cho response khi dang nh?p th�nh c�ng
+// DTO cho response khi đăng nhập thành công
 export interface AuthResponse {
   token: string;
   type: string;
@@ -9,10 +9,21 @@ export interface AuthResponse {
   email: string;
 }
 
-// DTO ch?a th�ng tin user co b?n
+// DTO cho profile information
+export interface UserProfile {
+  userId: number;
+  dateOfBirth: string;
+  avatar?: string;
+  heightCm: number;
+  weightKg: number;
+  gender: string;
+}
+
+// DTO chứa thông tin user cơ bản
 export interface UserInfo {
   id: number;
   email: string;
   fullName: string;
-  token: string; 
+  token: string;
+  profile?: UserProfile;
 }

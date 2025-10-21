@@ -9,12 +9,18 @@ export type AuthStackParamList = {
 export type AuthNavigationProp = NativeStackNavigationProp<AuthStackParamList>;
 // �?nh nghia c�c m�n h�nh trong lu?ng ch�nh c?a ?ng d?ng (d� dang nh?p)
 export type AppTabParamList = {
+  Dashboard: undefined;
   Home: undefined;
   Profile: undefined;
 };
 export type PostLoginStackParamList = {
   UserProfile: undefined;
   UserGoal: undefined;
+};
+
+export type DashboardStackParamList = {
+  DashboardMain: undefined;
+  AllHealthData: undefined;
 };
 
 export type PostLoginOnboardingNavigationProp = NativeStackNavigationProp<PostLoginStackParamList>;

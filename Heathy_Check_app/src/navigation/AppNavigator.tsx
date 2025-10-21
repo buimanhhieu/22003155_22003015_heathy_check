@@ -1,32 +1,36 @@
 // src/navigation/AppNavigator.tsx
 
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { AuthContext } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import {
   AuthStackParamList,
   AppTabParamList,
   PostLoginStackParamList,
+  DashboardStackParamList,
 } from "./types"; // Giả sử bạn có PostLoginStackParamList
 
 // Import tất cả các màn hình
 import OnboardingScreen from "../screens/OnboardingScreen";
 import LoginScreen from "../screens/LoginScreen";
 import SignupScreen from "../screens/SignupScreen";
+import DashboardScreen from "../screens/DashboardScreen";
 import HomeScreen from "../screens/HomeScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import LoadingScreen from "../screens/LoadingScreen";
 import UserProfileScreen from "../screens/UserProfileScreen";
 import UserGoalScreen from "../screens/UserGoalScreen";
+import AllHealthDataScreen from "../screens/AllHealthDataScreen";
 
 // Khởi tạo các Stack và Tab Navigator
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const PostLoginStack = createNativeStackNavigator<PostLoginStackParamList>();
+const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
 /**
@@ -65,11 +69,21 @@ function AppFlow() {
   return (
     <Tab.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: "#6200ee" },
-        headerTintColor: "#fff",
-        tabBarActiveTintColor: "#6200ee",
+        headerShown: false,
+        tabBarActiveTintColor: "#00BCD4",
+        tabBarInactiveTintColor: "#666",
       }}
     >
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardStackNavigator}
+        options={{
+          title: "Dashboard",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="view-dashboard" color={color} size={size} />
+          ),
+        }}
+      />
       <Tab.Screen
         name="Home"
         component={HomeScreen}
@@ -95,11 +109,23 @@ function AppFlow() {
 }
 
 /**
+ * Dashboard Stack Navigator
+ */
+function DashboardStackNavigator() {
+  return (
+    <DashboardStack.Navigator screenOptions={{ headerShown: false }}>
+      <DashboardStack.Screen name="DashboardMain" component={DashboardScreen} />
+      <DashboardStack.Screen name="AllHealthData" component={AllHealthDataScreen} />
+    </DashboardStack.Navigator>
+  );
+}
+
+/**
  * Component Navigator chính
  * Quyết định hiển thị luồng nào dựa trên trạng thái của người dùng.
  */
 const AppNavigator: React.FC = () => {
-  const { isLoading, userToken, isProfileComplete } = useContext(AuthContext);
+  const { isLoading, isLoginInProgress, userToken, isProfileComplete } = useAuth();
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -115,7 +141,7 @@ const AppNavigator: React.FC = () => {
   }, []);
 
   // Hiển thị màn hình chờ trong khi kiểm tra trạng thái
-  if (isLoading || isFirstLaunch === null || isProfileComplete === null) {
+  if (isLoading || isFirstLaunch === null) {
     return <LoadingScreen />;
   }
 
@@ -123,13 +149,16 @@ const AppNavigator: React.FC = () => {
     <NavigationContainer>
       {userToken !== null ? (
         // Nếu đã đăng nhập, kiểm tra xem profile đã hoàn thành chưa
-        isProfileComplete ? (
+        isProfileComplete === true ? (
           <AppFlow />
-        ) : (
+        ) : isProfileComplete === false ? (
           <PostLoginOnboardingFlow />
+        ) : (
+          <LoadingScreen />
         )
       ) : (
         // Nếu chưa đăng nhập, vào luồng xác thực
+        // Không remount LoginScreen khi login thất bại
         <AuthFlow isFirstLaunch={isFirstLaunch} />
       )}
     </NavigationContainer>
