@@ -32,6 +32,7 @@ const ProfileScreen: React.FC = () => {
   const { userInfo, logout, updateUserInfo } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [changePasswordModalVisible, setChangePasswordModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   
   // Form states
@@ -43,6 +44,15 @@ const ProfileScreen: React.FC = () => {
   const [weightKg, setWeightKg] = useState(userInfo?.profile?.weightKg?.toString() || '');
   const [avatar, setAvatar] = useState<string | null>(userInfo?.profile?.avatar || null);
   const [error, setError] = useState('');
+
+  // Password states
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (userInfo?.profile?.dateOfBirth) {
@@ -210,6 +220,47 @@ const ProfileScreen: React.FC = () => {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError('Vui lòng điền đầy đủ thông tin.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError('Mật khẩu mới phải có ít nhất 6 ký tự.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Mật khẩu mới và xác nhận mật khẩu không khớp.');
+      return;
+    }
+
+    setLoading(true);
+    setPasswordError('');
+    try {
+      await userApi.put(`/${userInfo?.id}/change-password`, {
+        currentPassword,
+        newPassword,
+      });
+      
+      setChangePasswordModalVisible(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      Alert.alert('Thành công', 'Đổi mật khẩu thành công!');
+    } catch (e: any) {
+      if (e.response?.status === 400) {
+        setPasswordError('Mật khẩu hiện tại không đúng.');
+      } else {
+        setPasswordError('Đổi mật khẩu thất bại. Vui lòng thử lại.');
+      }
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const calculateBMI = () => {
     if (userInfo?.profile?.heightCm && userInfo?.profile?.weightKg) {
       const heightM = userInfo.profile.heightCm / 100;
@@ -341,6 +392,15 @@ const ProfileScreen: React.FC = () => {
             <TouchableOpacity style={styles.actionRow}>
               <MaterialCommunityIcons name="information" size={24} color="#00BCD4" />
               <Text style={styles.actionText}>Về ứng dụng</Text>
+              <MaterialCommunityIcons name="chevron-right" size={24} color="#999" />
+            </TouchableOpacity>
+            <Divider style={styles.divider} />
+            <TouchableOpacity 
+              style={styles.actionRow}
+              onPress={() => setChangePasswordModalVisible(true)}
+            >
+              <MaterialCommunityIcons name="lock-reset" size={24} color="#00BCD4" />
+              <Text style={styles.actionText}>Đổi mật khẩu</Text>
               <MaterialCommunityIcons name="chevron-right" size={24} color="#999" />
             </TouchableOpacity>
           </Card.Content>
@@ -488,8 +548,117 @@ const ProfileScreen: React.FC = () => {
               >
                 Lưu
               </Button>
-            </View>
+    </View>
           </ScrollView>
+        </Modal>
+      </Portal>
+
+      {/* Change Password Modal */}
+      <Portal>
+        <Modal
+          visible={changePasswordModalVisible}
+          onDismiss={() => {
+            setChangePasswordModalVisible(false);
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+            setPasswordError('');
+          }}
+          contentContainerStyle={styles.passwordModalContainer}
+        >
+          <View>
+            <Text style={styles.modalTitle}>Đổi mật khẩu</Text>
+            <Text style={styles.modalSubtitle}>
+              Vui lòng nhập mật khẩu hiện tại và mật khẩu mới
+            </Text>
+
+            {/* Current Password */}
+            <TextInput
+              label="Mật khẩu hiện tại"
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              mode="outlined"
+              style={styles.modalInput}
+              activeOutlineColor="#00BCD4"
+              secureTextEntry={!showCurrentPassword}
+              right={
+                <TextInput.Icon
+                  icon={showCurrentPassword ? 'eye-off' : 'eye'}
+                  onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                />
+              }
+            />
+
+            {/* New Password */}
+            <TextInput
+              label="Mật khẩu mới"
+              value={newPassword}
+              onChangeText={setNewPassword}
+              mode="outlined"
+              style={styles.modalInput}
+              activeOutlineColor="#00BCD4"
+              secureTextEntry={!showNewPassword}
+              right={
+                <TextInput.Icon
+                  icon={showNewPassword ? 'eye-off' : 'eye'}
+                  onPress={() => setShowNewPassword(!showNewPassword)}
+                />
+              }
+            />
+
+            {/* Confirm Password */}
+            <TextInput
+              label="Xác nhận mật khẩu mới"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              mode="outlined"
+              style={styles.modalInput}
+              activeOutlineColor="#00BCD4"
+              secureTextEntry={!showConfirmPassword}
+              right={
+                <TextInput.Icon
+                  icon={showConfirmPassword ? 'eye-off' : 'eye'}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                />
+              }
+            />
+
+            <HelperText type="error" visible={!!passwordError}>
+              {passwordError}
+            </HelperText>
+
+            {/* Password Requirements */}
+            <View style={styles.passwordRequirements}>
+              <Text style={styles.requirementText}>• Mật khẩu phải có ít nhất 6 ký tự</Text>
+              <Text style={styles.requirementText}>• Mật khẩu mới phải khác mật khẩu hiện tại</Text>
+            </View>
+
+            {/* Buttons */}
+            <View style={styles.modalButtons}>
+              <Button
+                mode="outlined"
+                onPress={() => {
+                  setChangePasswordModalVisible(false);
+                  setCurrentPassword('');
+                  setNewPassword('');
+                  setConfirmPassword('');
+                  setPasswordError('');
+                }}
+                style={styles.modalButton}
+              >
+                Hủy
+              </Button>
+              <Button
+                mode="contained"
+                onPress={handleChangePassword}
+                style={[styles.modalButton, styles.saveButton]}
+                loading={loading}
+                disabled={loading}
+              >
+                Đổi mật khẩu
+              </Button>
+            </View>
+          </View>
         </Modal>
       </Portal>
 
@@ -528,8 +697,8 @@ const InfoRow: React.FC<{
 );
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+    container: { 
+        flex: 1, 
     backgroundColor: '#F5F7FA',
   },
   header: {
@@ -666,12 +835,17 @@ const styles = StyleSheet.create({
     margin: 20,
     padding: 24,
     borderRadius: 16,
-    maxHeight: '90%',
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1E232C',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6A707C',
     marginBottom: 24,
     textAlign: 'center',
   },
@@ -695,7 +869,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     backgroundColor: '#F7F8F9',
     alignItems: 'center',
-    justifyContent: 'center',
+        justifyContent: 'center', 
   },
   modalAvatarText: {
     fontSize: 12,
@@ -723,7 +897,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E8ECF4',
     borderRadius: 8,
-    alignItems: 'center',
+        alignItems: 'center',
     marginHorizontal: 4,
     backgroundColor: '#F7F8F9',
   },
@@ -759,6 +933,24 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: '#00BCD4',
+  },
+  passwordRequirements: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#F7F8F9',
+    borderRadius: 8,
+  },
+  requirementText: {
+    fontSize: 12,
+    color: '#6A707C',
+    marginVertical: 2,
+  },
+  passwordModalContainer: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginVertical: 40,
+    padding: 24,
+    borderRadius: 16,
   },
 });
 

@@ -4,6 +4,7 @@ import com.iuh.heathy_app_backend.dto.UserGoalUpdateDTO;
 import com.iuh.heathy_app_backend.dto.UserProfileUpdateDTO;
 import com.iuh.heathy_app_backend.dto.UserProfileResponseDTO;
 import com.iuh.heathy_app_backend.dto.MenstrualCycleRequest;
+import com.iuh.heathy_app_backend.dto.ChangePasswordRequest;
 import com.iuh.heathy_app_backend.entity.User;
 import com.iuh.heathy_app_backend.entity.UserGoal;
 import com.iuh.heathy_app_backend.entity.UserProfile;
@@ -12,6 +13,7 @@ import com.iuh.heathy_app_backend.repository.UserGoalRepository;
 import com.iuh.heathy_app_backend.repository.UserProfileRepository;
 import com.iuh.heathy_app_backend.repository.UserRepository;
 import com.iuh.heathy_app_backend.repository.MenstrualCycleRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,12 +26,14 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserGoalRepository userGoalRepository;
     private final MenstrualCycleRepository menstrualCycleRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserProfileRepository userProfileRepository, UserRepository userRepository, UserGoalRepository userGoalRepository, MenstrualCycleRepository menstrualCycleRepository) {
+    public UserService(UserProfileRepository userProfileRepository, UserRepository userRepository, UserGoalRepository userGoalRepository, MenstrualCycleRepository menstrualCycleRepository, PasswordEncoder passwordEncoder) {
         this.userProfileRepository = userProfileRepository;
         this.userRepository = userRepository;
         this.userGoalRepository = userGoalRepository;
         this.menstrualCycleRepository = menstrualCycleRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public UserProfile getUserProfile(Long userId) {
@@ -158,5 +162,27 @@ public class UserService {
         return menstrualCycleRepository.save(existingCycle);
     }
 
+    /**
+     * Change user password
+     * @param userId The user ID
+     * @param changePasswordRequest The change password request containing current and new password
+     * @throws RuntimeException if user not found or current password is incorrect
+     */
+    @Transactional
+    public void changePassword(Long userId, ChangePasswordRequest changePasswordRequest) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+        
+        // Verify current password
+        if (!passwordEncoder.matches(changePasswordRequest.getCurrentPassword(), user.getPasswordHash())) {
+            throw new RuntimeException("Current password is incorrect");
+        }
+        
+        // Encode and set new password
+        String encodedNewPassword = passwordEncoder.encode(changePasswordRequest.getNewPassword());
+        user.setPasswordHash(encodedNewPassword);
+        
+        userRepository.save(user);
+    }
 
 }

@@ -5,6 +5,8 @@ import com.iuh.heathy_app_backend.dto.UserGoalUpdateDTO;
 import com.iuh.heathy_app_backend.dto.UserProfileUpdateDTO;
 import com.iuh.heathy_app_backend.dto.UserProfileResponseDTO;
 import com.iuh.heathy_app_backend.dto.MenstrualCycleRequest;
+import com.iuh.heathy_app_backend.dto.ChangePasswordRequest;
+import com.iuh.heathy_app_backend.dto.MessageResponse;
 import com.iuh.heathy_app_backend.entity.UserGoal;
 import com.iuh.heathy_app_backend.entity.UserProfile;
 import com.iuh.heathy_app_backend.entity.MenstrualCycle;
@@ -12,6 +14,7 @@ import com.iuh.heathy_app_backend.service.DashboardService;
 import com.iuh.heathy_app_backend.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -67,5 +70,22 @@ public class UserController {
     public ResponseEntity<DashboardDTO> getDashboard(@PathVariable Long id) {
         DashboardDTO dashboard = dashboardService.getDashboardData(id);
         return ResponseEntity.ok(dashboard);
+    }
+
+    @PutMapping("/{id}/change-password")
+    public ResponseEntity<MessageResponse> changePassword(
+            @PathVariable Long id,
+            @Valid @RequestBody ChangePasswordRequest changePasswordRequest) {
+        try {
+            userService.changePassword(id, changePasswordRequest);
+            return ResponseEntity.ok(new MessageResponse("Password changed successfully"));
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("Current password is incorrect")) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new MessageResponse("Current password is incorrect"));
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new MessageResponse("Failed to change password"));
+        }
     }
 }
