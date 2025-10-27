@@ -25,6 +25,7 @@ interface HealthMetric {
   icon: string;
   iconColor: string;
   showForGender?: 'male' | 'female' | 'all';
+  onClick?: () => void;
 }
 
 const AllHealthDataScreen: React.FC = () => {
@@ -70,10 +71,11 @@ const AllHealthDataScreen: React.FC = () => {
       {
         id: 'steps',
         title: 'Steps',
-        value: dashboardData?.highlights?.steps?.value || '0 steps',
+        value: dashboardData?.highlights?.steps?.value ? `${dashboardData.highlights.steps.value.toLocaleString()} steps` : '0 steps',
         icon: 'directions-walk',
         iconColor: '#FF9800',
         showForGender: 'all',
+        onClick: () => navigation.navigate('StepsChart'),
       },
       {
         id: 'cycleTracking',
@@ -343,7 +345,7 @@ const AllHealthDataScreen: React.FC = () => {
     <TouchableOpacity 
       key={metric.id} 
       style={styles.metricCard}
-      onPress={metric.id === 'cycleTracking' ? handleCycleTrackingPress : undefined}
+      onPress={metric.onClick || (metric.id === 'cycleTracking' ? handleCycleTrackingPress : undefined)}
     >
       <View style={styles.metricContent}>
         <View style={[styles.metricIcon, { backgroundColor: metric.iconColor }]}>

@@ -46,3 +46,7 @@ SELECT 'Meal Logs:', COUNT(*) FROM meal_logs;
 SELECT 'Database is now clean and ready for new data!' as message;
 
 
+
+
+
+

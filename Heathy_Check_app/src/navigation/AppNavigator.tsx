@@ -26,6 +26,7 @@ import LoadingScreen from "../screens/LoadingScreen";
 import UserProfileScreen from "../screens/UserProfileScreen";
 import UserGoalScreen from "../screens/UserGoalScreen";
 import AllHealthDataScreen from "../screens/AllHealthDataScreen";
+import StepsChartScreen from "../screens/StepsChartScreen";
 
 // Khởi tạo các Stack và Tab Navigator
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -116,6 +117,7 @@ function DashboardStackNavigator() {
     <DashboardStack.Navigator screenOptions={{ headerShown: false }}>
       <DashboardStack.Screen name="DashboardMain" component={DashboardScreen} />
       <DashboardStack.Screen name="AllHealthData" component={AllHealthDataScreen} />
+      <DashboardStack.Screen name="StepsChart" component={StepsChartScreen} />
     </DashboardStack.Navigator>
   );
 }

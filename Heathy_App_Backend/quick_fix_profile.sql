@@ -37,3 +37,7 @@ WHERE up.user_id = 1;
 SELECT 'Profile fix completed!' as message;
 
 
+
+
+
+

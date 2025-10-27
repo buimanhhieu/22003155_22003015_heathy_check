@@ -81,3 +81,7 @@ LEFT JOIN user_goals ug ON u.id = ug.user_id
 WHERE u.id = 1;
 
 
+
+
+
+
