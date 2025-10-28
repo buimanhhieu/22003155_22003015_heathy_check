@@ -26,6 +26,7 @@ import LoadingScreen from "../screens/LoadingScreen";
 import UserProfileScreen from "../screens/UserProfileScreen";
 import UserGoalScreen from "../screens/UserGoalScreen";
 import AllHealthDataScreen from "../screens/AllHealthDataScreen";
+import SettingsScreen from "../screens/SettingsScreen";
 import StepsChartScreen from "../screens/StepsChartScreen";
 
 // Khởi tạo các Stack và Tab Navigator
@@ -117,7 +118,11 @@ function DashboardStackNavigator() {
     <DashboardStack.Navigator screenOptions={{ headerShown: false }}>
       <DashboardStack.Screen name="DashboardMain" component={DashboardScreen} />
       <DashboardStack.Screen name="AllHealthData" component={AllHealthDataScreen} />
+<<<<<<< HEAD
+      <DashboardStack.Screen name="Settings" component={SettingsScreen} />
+=======
       <DashboardStack.Screen name="StepsChart" component={StepsChartScreen} />
+>>>>>>> 1031cde9ec6ac1717fd2bc319aaf261a886d6062
     </DashboardStack.Navigator>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, View, Alert } from 'react-native';
+import { TouchableOpacity, View, Alert, StyleSheet } from 'react-native';
 import { Avatar, Menu, Divider } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -20,19 +20,18 @@ const AvatarDropdown: React.FC<AvatarDropdownProps> = ({
   const [menuVisible, setMenuVisible] = useState(false);
   const { userInfo } = useAuth();
   
-
   const handleLogout = () => {
     setMenuVisible(false);
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      'Đăng xuất',
+      'Bạn có chắc chắn muốn đăng xuất?',
       [
         {
-          text: 'Cancel',
+          text: 'Hủy',
           style: 'cancel',
         },
         {
-          text: 'Logout',
+          text: 'Đăng xuất',
           style: 'destructive',
           onPress: onLogout,
         },
@@ -65,23 +64,39 @@ const AvatarDropdown: React.FC<AvatarDropdownProps> = ({
         </TouchableOpacity>
       }
     >
-      {onProfile && <Menu.Item onPress={() => { setMenuVisible(false); onProfile(); }} title="Profile" />}
-      {onSettings && <Menu.Item onPress={() => { setMenuVisible(false); onSettings(); }} title="Settings" />}
+      {onProfile && (
+        <Menu.Item 
+          onPress={() => { 
+            setMenuVisible(false); 
+            onProfile(); 
+          }} 
+          title="Hồ sơ cá nhân" 
+        />
+      )}
+      {onSettings && (
+        <Menu.Item 
+          onPress={() => { 
+            setMenuVisible(false); 
+            onSettings(); 
+          }} 
+          title="Cài đặt" 
+        />
+      )}
       {(onProfile || onSettings) && <Divider />}
-      <Menu.Item onPress={handleLogout} title="Logout" />
+      <Menu.Item onPress={handleLogout} title="Đăng xuất" />
     </Menu>
   );
 };
 
-const styles = {
+const styles = StyleSheet.create({
   avatarContainer: {
-    position: 'relative' as const,
+    position: 'relative',
   },
   avatar: {
     backgroundColor: '#00BCD4',
   },
   onlineIndicator: {
-    position: 'absolute' as const,
+    position: 'absolute',
     bottom: 2,
     right: 2,
     width: 12,
@@ -91,6 +106,6 @@ const styles = {
     borderWidth: 2,
     borderColor: 'white',
   },
-};
+});
 
 export default AvatarDropdown;
