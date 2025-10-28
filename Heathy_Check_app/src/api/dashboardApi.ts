@@ -2,7 +2,11 @@ import axios from 'axios';
 
 // const API_BASE_URL = 'http://192.168.39.112:8080/api';
 // const API_BASE_URL = 'http://192.168.1.192:8080/api';
+<<<<<<< HEAD
 // const API_BASE_URL = 'http://172.20.10.9:8080/api';
+// =======
+// const API_BASE_URL = 'http://172.20.10.8:8080/api';
+>>>>>>> 1031cde9ec6ac1717fd2bc319aaf261a886d6062
 export interface HealthScore {
     score: number;
     status: string;

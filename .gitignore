@@ -20,3 +20,23 @@ build/
 
 # VSCode
 .vscode/
+
+# SQL files (database scripts, debug files)
+*.sql
+
+# Documentation/Guide files (keep README.md)
+STEPS_TESTING_GUIDE.md
+test-steps.md
+*TESTING*.md
+*testing*.md
+test-*.md
+DEBUG*.md
+debug*.md
+
+# Tutorial/Explanation text files
+*.txt
+README_SAMPLE_DATA.md
+
+# Untrack scripts
+untrack-files.sh
+untrack-files.ps1

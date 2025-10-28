@@ -50,13 +50,22 @@ const DashboardScreen: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const loadDashboardData = async () => {
-    if (!userInfo?.id || !userInfo?.token) return;
+    if (!userInfo?.id || !userInfo?.token) {
+      console.log('❌ Missing userInfo:', { id: userInfo?.id, hasToken: !!userInfo?.token });
+      setLoading(false);
+      return;
+    }
 
+    console.log('🔄 Loading dashboard data for user:', userInfo.id);
     try {
       const data = await dashboardApi.getDashboard(userInfo.id, userInfo.token);
+      console.log('✅ Dashboard data loaded:', data);
       setDashboardData(data);
-    } catch (error) {
-      console.error('Error loading dashboard:', error);
+    } catch (error: any) {
+      console.error('❌ Error loading dashboard:', error);
+      console.error('Status:', error.response?.status);
+      console.error('Data:', error.response?.data);
+      console.error('Message:', error.message);
       Alert.alert('Lỗi', 'Không thể tải dữ liệu dashboard');
     } finally {
       setLoading(false);
@@ -362,14 +371,17 @@ const DashboardScreen: React.FC = () => {
         
         <View style={styles.highlightsGrid}>
           {/* Steps Card */}
-          <View style={[styles.highlightCard, styles.stepsCard]}>
+          <TouchableOpacity 
+            style={[styles.highlightCard, styles.stepsCard]}
+            onPress={() => navigation.navigate('StepsChart')}
+          >
             <View style={styles.highlightIcon}>
               <MaterialIcons name="directions-walk" size={24} color="white" />
             </View>
             <Text style={styles.highlightTitle}>Steps</Text>
             <Text style={styles.highlightValue}>{dashboardData.highlights.steps.value.toLocaleString()}</Text>
             <Text style={styles.highlightLastUpdated}>updated {dashboardData.highlights.steps.lastUpdated}</Text>
-          </View>
+          </TouchableOpacity>
 
           {/* Cycle Tracking Card - Only show for females */}
           {userInfo?.profile?.gender?.toLowerCase() === 'female' && (
