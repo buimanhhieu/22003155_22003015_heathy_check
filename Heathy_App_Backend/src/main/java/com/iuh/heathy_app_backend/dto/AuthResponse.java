@@ -11,13 +11,13 @@ public class AuthResponse {
     private String token;
     private String type = "Bearer";
     private Long id;
-    private String username;
     private String email;
+    private String name;
 
-    public AuthResponse(String accessToken, Long id, String username, String email) {
+    public AuthResponse(String accessToken, Long id, String email, String name) {
         this.token = accessToken;
         this.id = id;
-        this.username = username;
         this.email = email;
+        this.name = name;
     }
 }
