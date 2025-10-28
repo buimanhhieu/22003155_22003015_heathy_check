@@ -22,10 +22,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AvatarDropdown from '../components/AvatarDropdown';
 import { useNavigation } from '@react-navigation/native';
 import { DashboardStackParamList } from '../navigation/types';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { AppTabParamList } from '../navigation/types';
 
 const { width } = Dimensions.get('window');
 
-type DashboardScreenNavigationProp = any;
+type DashboardScreenNavigationProp = CompositeNavigationProp<
+  NativeStackNavigationProp<DashboardStackParamList>,
+  BottomTabNavigationProp<AppTabParamList>
+>;
 
 const DashboardScreen: React.FC = () => {
   const { userInfo, logout } = useAuth();
@@ -309,8 +316,14 @@ const DashboardScreen: React.FC = () => {
           <AvatarDropdown
             avatarUri={userInfo?.profile?.avatar}
             onLogout={logout}
-            onProfile={() => {}}
-            onSettings={() => {}}
+            onProfile={() => {
+              // Navigate to Profile tab
+              navigation.navigate('Profile' as any);
+            }}
+            onSettings={() => {
+              // Navigate to Settings screen in Dashboard stack
+              navigation.navigate('Settings');
+            }}
           />
         </View>
       </View>

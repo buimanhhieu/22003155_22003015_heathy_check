@@ -21,6 +21,7 @@ export type PostLoginStackParamList = {
 export type DashboardStackParamList = {
   DashboardMain: undefined;
   AllHealthData: undefined;
+  Settings: undefined;
 };
 
 export type PostLoginOnboardingNavigationProp = NativeStackNavigationProp<PostLoginStackParamList>;
