@@ -47,24 +47,43 @@ public class HealthDataService {
     
     @Transactional(readOnly = true)
     public List<HealthDataEntry> getHealthData(Long userId, LocalDate date, HealthMetricType metricType) {
-        final OffsetDateTime startOfDay = date != null ? date.atStartOfDay().atOffset(ZoneOffset.UTC) : null;
-        final OffsetDateTime endOfDay = date != null ? date.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC) : null;
         final HealthMetricType finalMetricType = metricType;
         
-        // TODO: Implement filtering logic based on date and metricType
-        // For now, return all entries for the user
-        return healthDataEntryRepository.findAll()
+        System.out.println("[HealthDataService] getHealthData called - userId: " + userId + ", date: " + date + ", metricType: " + metricType);
+        
+        List<HealthDataEntry> allEntries = healthDataEntryRepository.findAll();
+        System.out.println("[HealthDataService] Total entries in DB: " + allEntries.size());
+        
+        List<HealthDataEntry> result = allEntries
                 .stream()
-                .filter(entry -> entry.getUser().getId().equals(userId))
-                .filter(entry -> finalMetricType == null || entry.getMetricType().equals(finalMetricType))
                 .filter(entry -> {
-                    if (startOfDay != null && endOfDay != null) {
-                        return entry.getRecordedAt().isAfter(startOfDay) && entry.getRecordedAt().isBefore(endOfDay);
+                    boolean matches = entry.getUser().getId().equals(userId);
+                    if (!matches) return false;
+                    System.out.println("[HealthDataService] Entry " + entry.getId() + " - userId match: " + matches + ", metricType: " + entry.getMetricType() + ", recordedAt: " + entry.getRecordedAt());
+                    return true;
+                })
+                .filter(entry -> {
+                    if (finalMetricType != null) {
+                        boolean matches = entry.getMetricType().equals(finalMetricType);
+                        if (!matches) return false;
+                    }
+                    return true;
+                })
+                .filter(entry -> {
+                    if (date != null) {
+                        // Compare dates by converting to LocalDate to avoid timezone issues
+                        LocalDate entryDate = entry.getRecordedAt().toLocalDate();
+                        boolean matches = entryDate.equals(date);
+                        System.out.println("[HealthDataService] Entry " + entry.getId() + " - entryDate: " + entryDate + ", requestedDate: " + date + ", match: " + matches);
+                        return matches;
                     }
                     return true;
                 })
                 .sorted((e1, e2) -> e2.getRecordedAt().compareTo(e1.getRecordedAt()))
                 .toList();
+        
+        System.out.println("[HealthDataService] Returning " + result.size() + " entries");
+        return result;
     }
     
     @Transactional
@@ -114,16 +133,17 @@ public class HealthDataService {
     public List<HealthDataEntry> getWeeklyHealthData(Long userId, HealthMetricType metricType) {
         LocalDate today = LocalDate.now();
         LocalDate weekAgo = today.minusDays(6);
-        
-        final OffsetDateTime startOfWeek = weekAgo.atStartOfDay().atOffset(ZoneOffset.UTC);
-        final OffsetDateTime endOfWeek = today.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
         final HealthMetricType finalMetricType = metricType;
         
         return healthDataEntryRepository.findAll()
                 .stream()
                 .filter(entry -> entry.getUser().getId().equals(userId))
                 .filter(entry -> finalMetricType == null || entry.getMetricType().equals(finalMetricType))
-                .filter(entry -> entry.getRecordedAt().isAfter(startOfWeek) && entry.getRecordedAt().isBefore(endOfWeek))
+                .filter(entry -> {
+                    // Compare dates by converting to LocalDate to avoid timezone issues
+                    LocalDate entryDate = entry.getRecordedAt().toLocalDate();
+                    return !entryDate.isBefore(weekAgo) && !entryDate.isAfter(today);
+                })
                 .sorted((e1, e2) -> e2.getRecordedAt().compareTo(e1.getRecordedAt()))
                 .toList();
     }

@@ -14,7 +14,7 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
         return;
     }
 
-    if (data && 'locations' in data) {
+    if (data && typeof data === 'object' && 'locations' in data) {
         const { locations } = data as any;
 
         // Calculate steps based on movement
@@ -108,6 +108,8 @@ export const saveStepsToDatabase = async () => {
 export const getTodaySteps = async (userId: number, token: string): Promise<number> => {
     try {
         const today = new Date().toISOString().split('T')[0];
+        console.log('[StepsService] Getting today steps for date:', today, 'userId:', userId);
+
         const response = await userApi.get(`/${userId}/health-data`, {
             params: {
                 date: today,
@@ -118,11 +120,58 @@ export const getTodaySteps = async (userId: number, token: string): Promise<numb
             }
         });
 
-        // Sum all steps entries for today
-        const stepsData = response.data || [];
-        return stepsData.reduce((total: number, entry: any) => total + (entry.value || 0), 0);
-    } catch (error) {
-        console.error('Error getting today steps:', error);
+        console.log('[StepsService] Response status:', response.status);
+        console.log('[StepsService] Response headers:', response.headers);
+        console.log('[StepsService] Response data type:', typeof response.data);
+        console.log('[StepsService] Response data:', JSON.stringify(response.data, null, 2));
+        console.log('[StepsService] Full response:', JSON.stringify(response, null, 2));
+
+        // Handle response - should be array directly now
+        let stepsData: any[] = [];
+
+        if (response?.data !== undefined && response?.data !== null) {
+            if (Array.isArray(response.data)) {
+                stepsData = response.data;
+                console.log('[StepsService] ✅ Found array with', stepsData.length, 'entries');
+            } else if (typeof response.data === 'object') {
+                // Fallback: try to extract array from common properties
+                stepsData = (response.data as any).data ||
+                    (response.data as any).entries ||
+                    (response.data as any).results ||
+                    [];
+                console.log('[StepsService] ⚠️ Extracted array from object, length:', stepsData.length);
+            } else {
+                console.warn('[StepsService] ⚠️ Response.data is not array or object:', typeof response.data);
+            }
+        } else {
+            console.warn('[StepsService] ❌ No data in response (undefined or null)');
+        }
+
+        if (stepsData.length === 0) {
+            console.log('[StepsService] No steps data found for today');
+            return 0;
+        }
+
+        // Get the maximum value from all entries (total steps for today)
+        // Since steps accumulate throughout the day, the latest/highest value is the total
+        const values = stepsData
+            .map((entry: any) => {
+                const val = entry?.value ?? entry?.Value ?? 0;
+                console.log('[StepsService] Entry:', { id: entry?.id, value: val, metricType: entry?.metricType });
+                return typeof val === 'number' && !isNaN(val) ? val : 0;
+            })
+            .filter((val: number) => typeof val === 'number' && !isNaN(val) && val > 0);
+
+        const result = values.length > 0 ? Math.max(...values) : 0;
+        console.log('[StepsService] Today steps result:', result);
+        return result;
+    } catch (error: any) {
+        console.error('[StepsService] Error getting today steps:', error);
+        console.error('[StepsService] Error details:', {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status
+        });
         // Return 0 if error (e.g., no data yet)
         return 0;
     }
@@ -139,24 +188,61 @@ export const getWeeklySteps = async (userId: number, token: string): Promise<any
             date.setDate(date.getDate() - i);
             const dateStr = date.toISOString().split('T')[0];
 
-            const response = await userApi.get(`/${userId}/health-data`, {
-                params: {
-                    date: dateStr,
-                    metricType: 'STEPS'
-                },
-                headers: {
-                    'Authorization': `Bearer ${token}`
+            try {
+                const response = await userApi.get(`/${userId}/health-data`, {
+                    params: {
+                        date: dateStr,
+                        metricType: 'STEPS'
+                    },
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                // Handle different response structures
+                let stepsData: any[] = [];
+
+                if (response.data) {
+                    if (Array.isArray(response.data)) {
+                        stepsData = response.data;
+                    } else if (typeof response.data === 'object') {
+                        // If it's an object, try to extract array from common properties
+                        stepsData = (response.data as any).data ||
+                            (response.data as any).entries ||
+                            (response.data as any).results ||
+                            [];
+                    }
                 }
-            });
 
-            const stepsData = response.data || [];
-            const totalSteps = stepsData.reduce((total: number, entry: any) => total + (entry.value || 0), 0);
+                // Get the maximum value from all entries (total steps for the day)
+                let totalSteps = 0;
+                if (stepsData.length > 0) {
+                    const values = stepsData
+                        .map((entry: any) => {
+                            const val = entry?.value ?? entry?.Value ?? 0;
+                            return typeof val === 'number' && !isNaN(val) ? val : 0;
+                        })
+                        .filter((val: number) => typeof val === 'number' && !isNaN(val) && val > 0);
 
-            weeklyData.push({
-                date: dateStr,
-                steps: totalSteps,
-                day: getDayName(date)
-            });
+                    totalSteps = values.length > 0 ? Math.max(...values) : 0;
+                }
+
+                console.log(`[StepsService] Date ${dateStr}: ${totalSteps} steps from ${stepsData.length} entries`);
+
+                weeklyData.push({
+                    date: dateStr,
+                    steps: totalSteps,
+                    day: getDayName(date)
+                });
+            } catch (dayError) {
+                // If error for a specific day, use 0
+                console.warn(`Error getting steps for ${dateStr}:`, dayError);
+                weeklyData.push({
+                    date: dateStr,
+                    steps: 0,
+                    day: getDayName(date)
+                });
+            }
         }
 
         return weeklyData;

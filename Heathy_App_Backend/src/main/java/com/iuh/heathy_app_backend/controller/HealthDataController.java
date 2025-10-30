@@ -1,6 +1,7 @@
 package com.iuh.heathy_app_backend.controller;
 
 import com.iuh.heathy_app_backend.dto.HealthDataDTO;
+import com.iuh.heathy_app_backend.dto.HealthDataResponseDTO;
 import com.iuh.heathy_app_backend.entity.HealthDataEntry;
 import com.iuh.heathy_app_backend.entity.HealthMetricType;
 import com.iuh.heathy_app_backend.service.HealthDataService;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users/{userId}/health-data")
@@ -31,12 +33,24 @@ public class HealthDataController {
     }
     
     @GetMapping
-    public ResponseEntity<List<HealthDataEntry>> getHealthData(
+    public ResponseEntity<List<HealthDataResponseDTO>> getHealthData(
             @PathVariable Long userId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) HealthMetricType metricType) {
+        System.out.println("[HealthDataController] GET /health-data - userId: " + userId + ", date: " + date + ", metricType: " + metricType);
         List<HealthDataEntry> entries = healthDataService.getHealthData(userId, date, metricType);
-        return ResponseEntity.ok(entries);
+        System.out.println("[HealthDataController] Service returned " + entries.size() + " entries");
+        List<HealthDataResponseDTO> responseDTOs = entries.stream()
+                .map(entry -> new HealthDataResponseDTO(
+                        entry.getId(),
+                        entry.getMetricType(),
+                        entry.getValue(),
+                        entry.getUnit(),
+                        entry.getRecordedAt()
+                ))
+                .collect(Collectors.toList());
+        System.out.println("[HealthDataController] Returning " + responseDTOs.size() + " DTOs");
+        return ResponseEntity.ok(responseDTOs);
     }
     
     @PutMapping("/{id}")
@@ -57,20 +71,42 @@ public class HealthDataController {
     }
     
     @GetMapping("/today")
-    public ResponseEntity<List<HealthDataEntry>> getTodayHealthData(
+    public ResponseEntity<List<HealthDataResponseDTO>> getTodayHealthData(
             @PathVariable Long userId) {
         List<HealthDataEntry> entries = healthDataService.getTodayHealthData(userId);
-        return ResponseEntity.ok(entries);
+        List<HealthDataResponseDTO> responseDTOs = entries.stream()
+                .map(entry -> new HealthDataResponseDTO(
+                        entry.getId(),
+                        entry.getMetricType(),
+                        entry.getValue(),
+                        entry.getUnit(),
+                        entry.getRecordedAt()
+                ))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(responseDTOs);
     }
     
     @GetMapping("/weekly")
-    public ResponseEntity<List<HealthDataEntry>> getWeeklyHealthData(
+    public ResponseEntity<List<HealthDataResponseDTO>> getWeeklyHealthData(
             @PathVariable Long userId,
             @RequestParam(required = false) HealthMetricType metricType) {
         List<HealthDataEntry> entries = healthDataService.getWeeklyHealthData(userId, metricType);
-        return ResponseEntity.ok(entries);
+        List<HealthDataResponseDTO> responseDTOs = entries.stream()
+                .map(entry -> new HealthDataResponseDTO(
+                        entry.getId(),
+                        entry.getMetricType(),
+                        entry.getValue(),
+                        entry.getUnit(),
+                        entry.getRecordedAt()
+                ))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(responseDTOs);
     }
 }
+
+
+
+
 
 
 
