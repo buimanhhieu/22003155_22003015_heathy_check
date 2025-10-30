@@ -39,12 +39,39 @@ const AvatarDropdown: React.FC<AvatarDropdownProps> = ({
     );
   };
 
+  const handleMenuPress = () => {
+    // Prevent menu from dismissing immediately when clicking anchor
+    // Use a small delay to ensure toggle works correctly
+    if (menuVisible) {
+      // Menu is open, close it
+      setMenuVisible(false);
+    } else {
+      // Menu is closed, open it
+      // Use setTimeout to prevent onDismiss from firing immediately
+      setTimeout(() => {
+        setMenuVisible(true);
+      }, 50);
+    }
+  };
+
   return (
     <Menu
       visible={menuVisible}
-      onDismiss={() => setMenuVisible(false)}
+      onDismiss={() => {
+        // Only dismiss if menu was actually visible
+        if (menuVisible) {
+          setMenuVisible(false);
+        }
+      }}
       anchor={
-        <TouchableOpacity onPress={() => setMenuVisible(true)}>
+        <TouchableOpacity 
+          onPress={(e) => {
+            e.stopPropagation();
+            handleMenuPress();
+          }} 
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
           <View style={styles.avatarContainer}>
             {avatarUri && avatarUri.trim() !== '' ? (
               <Avatar.Image
