@@ -27,9 +27,15 @@ import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../context/AuthContext';
 import userApi from '../api/userApi';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ProfileStackParamList } from '../navigation/types';
+
+type ProfileScreenNavigationProp = NativeStackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
 
 const ProfileScreen: React.FC = () => {
   const { userInfo, logout, updateUserInfo } = useAuth();
+  const navigation = useNavigation<ProfileScreenNavigationProp>();
   const [refreshing, setRefreshing] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [changePasswordModalVisible, setChangePasswordModalVisible] = useState(false);
@@ -377,19 +383,28 @@ const ProfileScreen: React.FC = () => {
         {/* Actions Card */}
         <Card style={styles.card}>
           <Card.Content>
-            <TouchableOpacity style={styles.actionRow}>
+            <TouchableOpacity 
+              style={styles.actionRow}
+              onPress={() => navigation.navigate('PrivacyPolicy')}
+            >
               <MaterialCommunityIcons name="shield-check" size={24} color="#00BCD4" />
               <Text style={styles.actionText}>Chính sách bảo mật</Text>
               <MaterialCommunityIcons name="chevron-right" size={24} color="#999" />
             </TouchableOpacity>
             <Divider style={styles.divider} />
-            <TouchableOpacity style={styles.actionRow}>
+            <TouchableOpacity 
+              style={styles.actionRow}
+              onPress={() => navigation.navigate('Help')}
+            >
               <MaterialCommunityIcons name="help-circle" size={24} color="#00BCD4" />
               <Text style={styles.actionText}>Trợ giúp</Text>
               <MaterialCommunityIcons name="chevron-right" size={24} color="#999" />
             </TouchableOpacity>
             <Divider style={styles.divider} />
-            <TouchableOpacity style={styles.actionRow}>
+            <TouchableOpacity 
+              style={styles.actionRow}
+              onPress={() => navigation.navigate('About')}
+            >
               <MaterialCommunityIcons name="information" size={24} color="#00BCD4" />
               <Text style={styles.actionText}>Về ứng dụng</Text>
               <MaterialCommunityIcons name="chevron-right" size={24} color="#999" />

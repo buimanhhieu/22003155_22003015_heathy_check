@@ -20,8 +20,16 @@ const AvatarDropdown: React.FC<AvatarDropdownProps> = ({
   const [menuVisible, setMenuVisible] = useState(false);
   const { userInfo } = useAuth();
   
-  const handleLogout = () => {
+  const toggleMenu = () => {
+    setMenuVisible(!menuVisible);
+  };
+
+  const closeMenu = () => {
     setMenuVisible(false);
+  };
+  
+  const handleLogout = () => {
+    closeMenu();
     Alert.alert(
       'Đăng xuất',
       'Bạn có chắc chắn muốn đăng xuất?',
@@ -39,56 +47,80 @@ const AvatarDropdown: React.FC<AvatarDropdownProps> = ({
     );
   };
 
+  const renderAvatar = () => (
+    <View style={styles.avatarWrapper}>
+      <View style={styles.avatarContainer}>
+        {avatarUri && avatarUri.trim() !== '' ? (
+          <Avatar.Image
+            size={40}
+            source={{ uri: avatarUri }}
+            style={styles.avatar}
+          />
+        ) : (
+          <Avatar.Text
+            size={40}
+            label={userInfo?.fullName?.charAt(0).toUpperCase() || 'U'}
+            style={styles.avatar}
+          />
+        )}
+        <View style={styles.onlineIndicator} />
+      </View>
+      <View style={styles.profileIconBadge}>
+        <MaterialIcons name="person" size={14} color="#fff" />
+      </View>
+    </View>
+  );
+
   return (
     <Menu
       visible={menuVisible}
-      onDismiss={() => setMenuVisible(false)}
+      onDismiss={closeMenu}
       anchor={
-        <TouchableOpacity onPress={() => setMenuVisible(true)}>
-          <View style={styles.avatarContainer}>
-            {avatarUri && avatarUri.trim() !== '' ? (
-              <Avatar.Image
-                size={40}
-                source={{ uri: avatarUri }}
-                style={styles.avatar}
-              />
-            ) : (
-              <Avatar.Text
-                size={40}
-                label={userInfo?.fullName?.charAt(0).toUpperCase() || 'U'}
-                style={styles.avatar}
-              />
-            )}
-            <View style={styles.onlineIndicator} />
-          </View>
+        <TouchableOpacity onPress={toggleMenu} style={styles.touchableContainer}>
+          {renderAvatar()}
         </TouchableOpacity>
       }
     >
       {onProfile && (
         <Menu.Item 
           onPress={() => { 
-            setMenuVisible(false); 
-            onProfile(); 
+            closeMenu();
+            setTimeout(() => onProfile(), 100);
           }} 
           title="Hồ sơ cá nhân" 
+          leadingIcon="account"
         />
       )}
       {onSettings && (
         <Menu.Item 
           onPress={() => { 
-            setMenuVisible(false); 
-            onSettings(); 
+            closeMenu();
+            setTimeout(() => onSettings(), 100);
           }} 
-          title="Cài đặt" 
+          title="Cài đặt"
+          leadingIcon="cog"
         />
       )}
       {(onProfile || onSettings) && <Divider />}
-      <Menu.Item onPress={handleLogout} title="Đăng xuất" />
+      <Menu.Item 
+        onPress={handleLogout} 
+        title="Đăng xuất"
+        leadingIcon="logout"
+      />
     </Menu>
   );
 };
 
 const styles = StyleSheet.create({
+  touchableContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
   avatarContainer: {
     position: 'relative',
   },
@@ -105,6 +137,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
     borderWidth: 2,
     borderColor: 'white',
+  },
+  profileIconBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#00BCD4',
+    borderWidth: 2,
+    borderColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
 });
 
