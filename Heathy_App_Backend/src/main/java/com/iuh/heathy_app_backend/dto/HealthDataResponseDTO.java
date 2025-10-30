@@ -1,29 +1,21 @@
 package com.iuh.heathy_app_backend.dto;
 
 import com.iuh.heathy_app_backend.entity.HealthMetricType;
-import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.OffsetDateTime;
 
 @Data
-public class HealthDataDTO {
-    
-    @NotNull(message = "Metric type cannot be null")
+@NoArgsConstructor
+@AllArgsConstructor
+public class HealthDataResponseDTO {
+    private Long id;
     private HealthMetricType metricType;
-    
-    @NotNull(message = "Value cannot be null")
     private Double value;
-    
     private String unit;
-    
     private OffsetDateTime recordedAt;
 }
-
-
-
-
-
-
 
 

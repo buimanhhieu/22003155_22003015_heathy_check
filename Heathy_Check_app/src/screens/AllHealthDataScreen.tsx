@@ -158,41 +158,8 @@ const AllHealthDataScreen: React.FC = () => {
   };
 
   const handleCycleTrackingPress = () => {
-    // Mở modal để user cập nhật thông tin
-    let lastPeriodDate;
-    let lastPeriodString = '';
-    
-    if (dashboardData?.highlights?.cycleTracking?.lastCycleDate && 
-        dashboardData.highlights.cycleTracking.lastCycleDate !== "Chưa có") {
-      
-      const dateStr = dashboardData.highlights.cycleTracking.lastCycleDate;
-      
-      try {
-        if (dateStr.includes('/')) {
-          // Format dd/MM/yyyy từ database
-          const [day, month, year] = dateStr.split('/');
-          lastPeriodDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-          lastPeriodString = lastPeriodDate.toISOString().split('T')[0];
-        } else {
-          // Format ISO string
-          lastPeriodDate = new Date(dateStr);
-          lastPeriodString = lastPeriodDate.toISOString().split('T')[0];
-        }
-      } catch (error) {
-        console.log('Error parsing lastCycleDate:', error);
-        lastPeriodDate = new Date();
-        lastPeriodString = lastPeriodDate.toISOString().split('T')[0];
-      }
-    } else {
-      // Nếu chưa có dữ liệu, sử dụng ngày hiện tại
-      lastPeriodDate = new Date();
-      lastPeriodString = lastPeriodDate.toISOString().split('T')[0];
-    }
-    
-    setSelectedDate(lastPeriodDate);
-    setNewLastPeriod(lastPeriodString);
-    setNewCycleLength('28'); // Default cycle length
-    setShowCycleModal(true);
+    // Navigate to Cycle Tracking screen
+    navigation.navigate('CycleTracking');
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
