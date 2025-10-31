@@ -13,6 +13,7 @@ export type AppTabParamList = {
   Home: undefined;
   Profile: undefined;
 };
+
 export type PostLoginStackParamList = {
   UserProfile: undefined;
   UserGoal: undefined;
@@ -23,6 +24,16 @@ export type DashboardStackParamList = {
   AllHealthData: undefined;
   Settings: undefined;
   StepsChart: undefined;
+  PrivacyPolicy: undefined;
+  Help: undefined;
+  About: undefined;
+};
+
+export type ProfileStackParamList = {
+  ProfileMain: undefined;
+  PrivacyPolicy: undefined;
+  Help: undefined;
+  About: undefined;
   CycleTracking: undefined;
   ArticleDetail: {
     articleId: number;

@@ -13,6 +13,7 @@ import {
   AppTabParamList,
   PostLoginStackParamList,
   DashboardStackParamList,
+  ProfileStackParamList,
 } from "./types"; // Giả sử bạn có PostLoginStackParamList
 
 // Import tất cả các màn hình
@@ -28,6 +29,9 @@ import UserGoalScreen from "../screens/UserGoalScreen";
 import AllHealthDataScreen from "../screens/AllHealthDataScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import StepsChartScreen from "../screens/StepsChartScreen";
+import PrivacyPolicyScreen from "../screens/PrivacyPolicyScreen";
+import HelpScreen from "../screens/HelpScreen";
+import AboutScreen from "../screens/AboutScreen";
 import CycleTrackingScreen from "../screens/CycleTrackingScreen";
 import ArticleDetailScreen from "../screens/ArticleDetailScreen";
 
@@ -35,6 +39,7 @@ import ArticleDetailScreen from "../screens/ArticleDetailScreen";
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const PostLoginStack = createNativeStackNavigator<PostLoginStackParamList>();
 const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
+const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
 /**
@@ -100,7 +105,7 @@ function AppFlow() {
       />
       <Tab.Screen
         name="Profile"
-        component={ProfileScreen}
+        component={ProfileStackNavigator}
         options={{
           title: "Cá nhân",
           tabBarIcon: ({ color, size }) => (
@@ -122,9 +127,26 @@ function DashboardStackNavigator() {
       <DashboardStack.Screen name="AllHealthData" component={AllHealthDataScreen} />
       <DashboardStack.Screen name="Settings" component={SettingsScreen} />
       <DashboardStack.Screen name="StepsChart" component={StepsChartScreen} />
+      <DashboardStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+      <DashboardStack.Screen name="Help" component={HelpScreen} />
+      <DashboardStack.Screen name="About" component={AboutScreen} />
       <DashboardStack.Screen name="CycleTracking" component={CycleTrackingScreen} />
       <DashboardStack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
     </DashboardStack.Navigator>
+  );
+}
+
+/**
+ * Profile Stack Navigator
+ */
+function ProfileStackNavigator() {
+  return (
+    <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+      <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
+      <ProfileStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+      <ProfileStack.Screen name="Help" component={HelpScreen} />
+      <ProfileStack.Screen name="About" component={AboutScreen} />
+    </ProfileStack.Navigator>
   );
 }
 

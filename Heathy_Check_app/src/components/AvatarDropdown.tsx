@@ -112,27 +112,27 @@ const AvatarDropdown: React.FC<AvatarDropdownProps> = ({
       {(onProfile || onSettings) && <Divider />}
       <Menu.Item onPress={handleLogout} title="Đăng xuất" />
     </Menu>
-  );
-};
-
-const styles = StyleSheet.create({
-  avatarContainer: {
-    position: 'relative',
-  },
-  avatar: {
-    backgroundColor: '#00BCD4',
-  },
-  onlineIndicator: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#4CAF50',
-    borderWidth: 2,
-    borderColor: 'white',
-  },
-});
-
-export default AvatarDropdown;
+    );
+  };
+  
+  const styles = StyleSheet.create({
+    avatarContainer: {
+      position: 'relative',
+    },
+    avatar: {
+      backgroundColor: '#00BCD4',
+    },
+    onlineIndicator: {
+      position: 'absolute',
+      bottom: 2,
+      right: 2,
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      backgroundColor: '#4CAF50',
+      borderWidth: 2,
+      borderColor: 'white',
+    },
+  });
+  
+  export default AvatarDropdown;
