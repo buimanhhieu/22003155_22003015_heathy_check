@@ -130,6 +130,15 @@ const AllHealthDataScreen: React.FC = () => {
         showForGender: 'all',
       },
       {
+        id: 'nutrition',
+        title: 'Nutrition',
+        value: dashboardData?.highlights?.nutrition?.totalKcal ? `${dashboardData.highlights.nutrition.totalKcal} kcal` : '0 kcal',
+        icon: 'restaurant',
+        iconColor: '#00BCD4',
+        showForGender: 'all',
+        onClick: () => navigation.navigate('Nutrition'),
+      },
+      {
         id: 'burnedCalories',
         title: 'Burned calories',
         value: '850 kcal',
