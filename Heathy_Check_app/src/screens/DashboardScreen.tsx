@@ -410,10 +410,6 @@ const DashboardScreen: React.FC = () => {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>This week report</Text>
-          <TouchableOpacity style={styles.viewMoreButton}>
-            <Text style={styles.viewMoreText}>View more</Text>
-            <MaterialIcons name="arrow-forward" size={16} color="#666" />
-          </TouchableOpacity>
         </View>
         
         <View style={styles.weeklyGrid}>
