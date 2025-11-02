@@ -24,6 +24,16 @@ export type DashboardStackParamList = {
   AllHealthData: undefined;
   Settings: undefined;
   StepsChart: undefined;
+  Nutrition: undefined;
+  AddMeal: {
+    mealLog?: any;
+  };
+  CycleTracking: undefined;
+  ArticleDetail: {
+    articleId: number;
+    title: string;
+    image?: string;
+  };
   PrivacyPolicy: undefined;
   Help: undefined;
   About: undefined;

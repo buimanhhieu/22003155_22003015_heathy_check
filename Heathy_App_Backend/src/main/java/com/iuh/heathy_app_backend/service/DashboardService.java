@@ -265,17 +265,44 @@ public class DashboardService {
     private NutritionDTO getNutritionData(Long userId) {
         NutritionDTO nutrition = new NutritionDTO();
         
-        // Lấy tổng calo hôm nay
-        OffsetDateTime startOfDay = OffsetDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+        // Lấy tổng calo hôm nay - dùng LocalDate để tránh timezone issues (giống MealLogService)
+        LocalDate today = LocalDate.now();
+        OffsetDateTime startOfDay = today.atStartOfDay().atOffset(OffsetDateTime.now().getOffset());
         OffsetDateTime endOfDay = startOfDay.plusDays(1);
+        
+        System.out.println("[DashboardService] Getting nutrition data for userId: " + userId + ", date: " + today);
+        System.out.println("[DashboardService] Date range: " + startOfDay + " to " + endOfDay);
+        
+        // Thử 2 cách: dùng query SUM và dùng list để tính
         Object[] result = mealLogRepository.findDailyCaloriesAndLastUpdate(userId, startOfDay, endOfDay);
+        List<MealLog> allMeals = mealLogRepository.findByUserIdAndDateRange(userId, startOfDay, endOfDay);
+        
+        System.out.println("[DashboardService] Query result: " + (result != null ? Arrays.toString(result) : "null"));
+        System.out.println("[DashboardService] All meals count: " + (allMeals != null ? allMeals.size() : 0));
+        
+        // Tính tổng từ list meals (backup method)
+        double totalKcalFromList = 0.0;
+        OffsetDateTime lastUpdateFromList = null;
+        if (allMeals != null && !allMeals.isEmpty()) {
+            for (MealLog meal : allMeals) {
+                if (meal.getTotalCalories() != null) {
+                    totalKcalFromList += meal.getTotalCalories();
+                }
+                if (meal.getLoggedAt() != null) {
+                    if (lastUpdateFromList == null || meal.getLoggedAt().isAfter(lastUpdateFromList)) {
+                        lastUpdateFromList = meal.getLoggedAt();
+                    }
+                }
+            }
+        }
+        System.out.println("[DashboardService] Calculated from list: totalKcal=" + totalKcalFromList + ", lastUpdate=" + lastUpdateFromList);
         
         // Xử lý an toàn kết quả từ database
         int totalKcal = 0;
         OffsetDateTime lastUpdate = null;
         
         if (result != null && result.length >= 2) {
-            // Xử lý totalKcal - có thể là BigDecimal, Long, hoặc null
+            // Xử lý totalKcal - có thể là BigDecimal, Long, Double, hoặc null
             if (result[0] != null) {
                 if (result[0] instanceof Number) {
                     totalKcal = ((Number) result[0]).intValue();
@@ -294,6 +321,19 @@ public class DashboardService {
             }
         }
         
+        // Nếu query SUM trả về 0 nhưng có meals trong list, dùng giá trị từ list
+        if (totalKcal == 0 && totalKcalFromList > 0) {
+            totalKcal = (int) Math.round(totalKcalFromList);
+            System.out.println("[DashboardService] Using calculated value from list: " + totalKcal);
+        }
+        
+        // Nếu không có lastUpdate từ query, dùng từ list
+        if (lastUpdate == null && lastUpdateFromList != null) {
+            lastUpdate = lastUpdateFromList;
+            System.out.println("[DashboardService] Using lastUpdate from list: " + lastUpdate);
+        }
+        
+        System.out.println("[DashboardService] Final totalKcal: " + totalKcal);
         nutrition.setTotalKcal(totalKcal);
         
         // Lấy mục tiêu

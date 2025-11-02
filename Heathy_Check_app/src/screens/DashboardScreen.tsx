@@ -78,6 +78,14 @@ const DashboardScreen: React.FC = () => {
     loadDashboardData();
   }, [userInfo]);
 
+  useEffect(() => {
+    // Reload dashboard data when screen comes into focus (e.g., after adding/editing meal in Nutrition)
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadDashboardData();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   const onRefresh = () => {
     setRefreshing(true);
     loadDashboardData();
@@ -384,14 +392,17 @@ const DashboardScreen: React.FC = () => {
           </View>
 
           {/* Nutrition Card */}
-          <View style={[styles.highlightCard, styles.nutritionCard]}>
+          <TouchableOpacity 
+            style={[styles.highlightCard, styles.nutritionCard]}
+            onPress={() => navigation.navigate('Nutrition')}
+          >
             <View style={styles.highlightIcon}>
               <MaterialIcons name="restaurant" size={24} color="white" />
             </View>
             <Text style={styles.highlightTitle}>Nutrition</Text>
             <Text style={styles.highlightValue}>{dashboardData.highlights.nutrition.totalKcal} kcal</Text>
             <Text style={styles.highlightLastUpdated}>updated 5 min ago</Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
 

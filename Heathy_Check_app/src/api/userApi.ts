@@ -6,10 +6,13 @@ import { UserInfo } from '../types'; // Đảm bảo UserInfo trong types.ts có
 import { clearAllStorage } from '../utils/storageUtils';
 
 // const API_BASE_URL = 'http://192.168.39.112:8080/api/users';
-// const API_BASE_URL = 'http://192.168.39.112:8080/api/users';
+const API_BASE_URL = 'http://192.168.39.112:8080/api/users';
 // const API_BASE_URL = 'http://172.20.10.9:8080/api/users';
 // const API_BASE_URL = 'http://172.20.10.8:8080/api/users';
+<<<<<<< HEAD
 const API_BASE_URL = 'http://172.20.10.9:8080/api/users';
+=======
+>>>>>>> fab567acd725547d66669d1b5e7271ab9b878361
 // const API_BASE_URL = 'http://192.168.178.194:8080/api/users';
 // const API_BASE_URL = 'http://192.168.1.192:8080/api/users';
 const userApi = axios.create({
@@ -66,5 +69,52 @@ userApi.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Meal Log API functions
+export interface MealLogRequest {
+  mealName?: string;
+  mealType?: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
+  totalCalories: number;
+  fatGrams?: number;
+  proteinGrams?: number;
+  carbsGrams?: number;
+  loggedAt?: string;
+}
+
+export interface MealLogResponse {
+  id: number;
+  mealName?: string;
+  mealType?: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
+  totalCalories: number;
+  fatGrams: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  loggedAt: string;
+}
+
+export const mealLogApi = {
+  getMealLogs: async (userId: number, date?: string): Promise<MealLogResponse[]> => {
+    const params: any = {};
+    if (date) {
+      params.date = date;
+    }
+    const response = await userApi.get(`/${userId}/meal-logs`, { params });
+    return response.data;
+  },
+
+  createMealLog: async (userId: number, mealLog: MealLogRequest): Promise<MealLogResponse> => {
+    const response = await userApi.post(`/${userId}/meal-logs`, mealLog);
+    return response.data;
+  },
+
+  updateMealLog: async (userId: number, mealLogId: number, mealLog: MealLogRequest): Promise<MealLogResponse> => {
+    const response = await userApi.put(`/${userId}/meal-logs/${mealLogId}`, mealLog);
+    return response.data;
+  },
+
+  deleteMealLog: async (userId: number, mealLogId: number): Promise<void> => {
+    await userApi.delete(`/${userId}/meal-logs/${mealLogId}`);
+  },
+};
 
 export default userApi;

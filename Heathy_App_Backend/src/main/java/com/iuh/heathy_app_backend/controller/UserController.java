@@ -10,22 +10,36 @@ import com.iuh.heathy_app_backend.dto.MessageResponse;
 import com.iuh.heathy_app_backend.entity.UserGoal;
 import com.iuh.heathy_app_backend.entity.UserProfile;
 import com.iuh.heathy_app_backend.entity.MenstrualCycle;
+import com.iuh.heathy_app_backend.entity.MealLog;
+import com.iuh.heathy_app_backend.dto.MealLogRequestDTO;
+import com.iuh.heathy_app_backend.dto.MealLogResponseDTO;
 import com.iuh.heathy_app_backend.service.DashboardService;
 import com.iuh.heathy_app_backend.service.UserService;
+import com.iuh.heathy_app_backend.service.MealLogService;
+import com.iuh.heathy_app_backend.repository.MealLogRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.format.annotation.DateTimeFormat;
+
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
     private final UserService userService;
     private final DashboardService dashboardService;
+    private final MealLogRepository mealLogRepository;
+    private final MealLogService mealLogService;
 
-    public UserController(UserService userService, DashboardService dashboardService) {
+    public UserController(UserService userService, DashboardService dashboardService, MealLogRepository mealLogRepository, MealLogService mealLogService) {
         this.userService = userService;
         this.dashboardService = dashboardService;
+        this.mealLogRepository = mealLogRepository;
+        this.mealLogService = mealLogService;
     }
 
 
@@ -87,5 +101,38 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new MessageResponse("Failed to change password"));
         }
+    }
+
+    @GetMapping("/{id}/meal-logs")
+    public ResponseEntity<List<MealLogResponseDTO>> getMealLogs(
+            @PathVariable Long id,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        List<MealLogResponseDTO> mealLogs = mealLogService.getMealLogs(id, date);
+        return ResponseEntity.ok(mealLogs);
+    }
+    
+    @PostMapping("/{id}/meal-logs")
+    public ResponseEntity<MealLogResponseDTO> createMealLog(
+            @PathVariable Long id,
+            @Valid @RequestBody MealLogRequestDTO requestDTO) {
+        MealLogResponseDTO mealLog = mealLogService.createMealLog(id, requestDTO);
+        return ResponseEntity.ok(mealLog);
+    }
+    
+    @PutMapping("/{id}/meal-logs/{mealLogId}")
+    public ResponseEntity<MealLogResponseDTO> updateMealLog(
+            @PathVariable Long id,
+            @PathVariable Long mealLogId,
+            @Valid @RequestBody MealLogRequestDTO requestDTO) {
+        MealLogResponseDTO mealLog = mealLogService.updateMealLog(id, mealLogId, requestDTO);
+        return ResponseEntity.ok(mealLog);
+    }
+    
+    @DeleteMapping("/{id}/meal-logs/{mealLogId}")
+    public ResponseEntity<Void> deleteMealLog(
+            @PathVariable Long id,
+            @PathVariable Long mealLogId) {
+        mealLogService.deleteMealLog(id, mealLogId);
+        return ResponseEntity.ok().build();
     }
 }
