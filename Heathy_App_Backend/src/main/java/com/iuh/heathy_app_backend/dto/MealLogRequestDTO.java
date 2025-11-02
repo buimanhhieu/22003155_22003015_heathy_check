@@ -22,3 +22,4 @@ public class MealLogRequestDTO {
     private OffsetDateTime loggedAt; // Optional, default will be now
 }
 
+

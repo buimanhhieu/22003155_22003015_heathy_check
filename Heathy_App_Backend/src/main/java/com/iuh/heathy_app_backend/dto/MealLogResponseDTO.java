@@ -20,3 +20,4 @@ public class MealLogResponseDTO {
     private OffsetDateTime loggedAt;
 }
 
+
