@@ -36,6 +36,7 @@ import CycleTrackingScreen from "../screens/CycleTrackingScreen";
 import ArticleDetailScreen from "../screens/ArticleDetailScreen";
 import NutritionScreen from "../screens/NutritionScreen";
 import AddMealScreen from "../screens/AddMealScreen";
+import SleepScreen from "../screens/SleepScreen";
 
 // Khởi tạo các Stack và Tab Navigator
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -131,6 +132,7 @@ function DashboardStackNavigator() {
       <DashboardStack.Screen name="StepsChart" component={StepsChartScreen} />
       <DashboardStack.Screen name="Nutrition" component={NutritionScreen} />
       <DashboardStack.Screen name="AddMeal" component={AddMealScreen} />
+      <DashboardStack.Screen name="Sleep" component={SleepScreen} />
       <DashboardStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <DashboardStack.Screen name="Help" component={HelpScreen} />
       <DashboardStack.Screen name="About" component={AboutScreen} />
