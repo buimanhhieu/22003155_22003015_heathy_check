@@ -439,7 +439,10 @@ const DashboardScreen: React.FC = () => {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Blogs</Text>
-          <TouchableOpacity style={styles.viewMoreButton}>
+          <TouchableOpacity 
+            style={styles.viewMoreButton}
+            onPress={() => navigation.navigate('AllArticles', { sortBy: 'newest' })}
+          >
             <Text style={styles.viewMoreText}>View more</Text>
             <MaterialIcons name="arrow-forward" size={16} color="#666" />
           </TouchableOpacity>
@@ -472,7 +475,13 @@ const DashboardScreen: React.FC = () => {
                     <MaterialIcons name="thumb-up" size={16} color="#666" />
                     <Text style={styles.blogVotesText}>{blog.voteCount} votes</Text>
                   </View>
-                  <TouchableOpacity style={styles.tellMeMoreButton}>
+                  <TouchableOpacity 
+                    style={styles.tellMeMoreButton}
+                    onPress={() => navigation.navigate('ArticleDetail', {
+                      articleId: blog.id,
+                      title: blog.title,
+                    })}
+                  >
                     <Text style={styles.tellMeMoreText}>Tell me more</Text>
                     <MaterialIcons name="arrow-forward" size={16} color="#2196F3" />
                   </TouchableOpacity>

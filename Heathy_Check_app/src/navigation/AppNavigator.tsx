@@ -141,6 +141,7 @@ function DashboardStackNavigator() {
       <DashboardStack.Screen name="About" component={AboutScreen} />
       <DashboardStack.Screen name="CycleTracking" component={CycleTrackingScreen} />
       <DashboardStack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
+      <DashboardStack.Screen name="AllArticles" component={AllArticlesScreen} />
     </DashboardStack.Navigator>
   );
 }

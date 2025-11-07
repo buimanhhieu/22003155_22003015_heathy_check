@@ -35,6 +35,10 @@ export type DashboardStackParamList = {
     title: string;
     image?: string;
   };
+  AllArticles: {
+    categoryId?: number;
+    sortBy?: string;
+  };
   PrivacyPolicy: undefined;
   Help: undefined;
   About: undefined;
