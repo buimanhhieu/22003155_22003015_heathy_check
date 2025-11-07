@@ -29,6 +29,7 @@ export type DashboardStackParamList = {
     mealLog?: any;
   };
   CycleTracking: undefined;
+  Sleep: undefined;
   ArticleDetail: {
     articleId: number;
     title: string;
@@ -37,12 +38,6 @@ export type DashboardStackParamList = {
   PrivacyPolicy: undefined;
   Help: undefined;
   About: undefined;
-  CycleTracking: undefined;
-  ArticleDetail: {
-    articleId: number;
-    title: string;
-    image?: string;
-  };
 };
 
 export type ProfileStackParamList = {

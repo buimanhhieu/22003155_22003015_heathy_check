@@ -120,6 +120,7 @@ const AllHealthDataScreen: React.FC = () => {
         icon: 'hotel',
         iconColor: '#F44336',
         showForGender: 'all',
+        onClick: () => navigation.navigate('Sleep'),
       },
       {
         id: 'heart',

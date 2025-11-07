@@ -382,14 +382,17 @@ const DashboardScreen: React.FC = () => {
           )}
 
           {/* Sleep Card */}
-          <View style={[styles.highlightCard, styles.sleepCard]}>
+          <TouchableOpacity 
+            style={[styles.highlightCard, styles.sleepCard]}
+            onPress={() => navigation.navigate('Sleep')}
+          >
             <View style={styles.highlightIcon}>
               <MaterialIcons name="bedtime" size={24} color="white" />
             </View>
             <Text style={styles.highlightTitle}>Sleep</Text>
             <Text style={styles.highlightValue}>{dashboardData.highlights.sleep.formatted}</Text>
             <Text style={styles.highlightLastUpdated}>updated a day ago</Text>
-          </View>
+          </TouchableOpacity>
 
           {/* Nutrition Card */}
           <TouchableOpacity 
