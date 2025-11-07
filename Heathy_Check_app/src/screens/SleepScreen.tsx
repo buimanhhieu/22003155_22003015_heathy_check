@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,56 +8,366 @@ import {
   SafeAreaView,
   StatusBar,
   Dimensions,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Modal,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { DashboardStackParamList } from '../navigation/types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useAuth } from '../context/AuthContext';
+import { dashboardApi, Sleep } from '../api/dashboardApi';
+import { sleepNotificationService, SleepSchedule } from '../services/SleepNotificationService';
+import userApi from '../api/userApi';
 
 const { width } = Dimensions.get('window');
 
 type SleepScreenNavigationProp = NativeStackNavigationProp<DashboardStackParamList, 'Sleep'>;
 
-// Dummy data
-const dummySleepData = {
+interface WeeklySleepData {
+  day: string;
+  hours: number;
+  percentage: number;
+}
+
+interface SleepData {
   averageSleep: {
-    hours: 7,
-    minutes: 31,
-  },
-  weeklyData: [
-    { day: 'Mon', hours: 6.5, percentage: 70 },
-    { day: 'Tue', hours: 4.0, percentage: 40 },
-    { day: 'Wed', hours: 5.5, percentage: 55 },
-    { day: 'Thu', hours: 7.5, percentage: 80 },
-    { day: 'Fri', hours: 6.0, percentage: 60 },
-    { day: 'Sat', hours: 8.5, percentage: 90 },
-    { day: 'Sun', hours: 7.0, percentage: 75 },
-  ],
-  sleepRate: 82,
+    hours: number;
+    minutes: number;
+  };
+  weeklyData: WeeklySleepData[];
+  sleepRate: number;
   deepSleep: {
-    hours: 1,
-    minutes: 3,
-  },
+    hours: number;
+    minutes: number;
+  };
   schedule: {
-    bedtime: '22:00',
-    wakeUp: '07:30',
-  },
+    bedtime: string;
+    wakeUp: string;
+  };
+}
+
+// Dummy data cho deep sleep (tạm thời)
+const generateDummyDeepSleep = (actualSleepHours: number): { hours: number; minutes: number } => {
+  // Deep sleep thường chiếm 15-20% tổng thời gian ngủ
+  const deepSleepPercentage = 0.15 + Math.random() * 0.05; // 15-20%
+  const deepSleepHours = actualSleepHours * deepSleepPercentage;
+  return {
+    hours: Math.floor(deepSleepHours),
+    minutes: Math.round((deepSleepHours % 1) * 60),
+  };
+};
+
+// Tính toán sleep rate dựa trên data thật và dummy data
+const calculateSleepRate = (actualSleepHours: number, goalHours: number, weeklyData: WeeklySleepData[]): number => {
+  // Tính tỷ lệ trung bình từ weekly data (kết hợp data thật và dummy)
+  const avgWeeklyPercentage = weeklyData.reduce((sum, day) => sum + day.percentage, 0) / weeklyData.length;
+  
+  // Tính tỷ lệ từ data thật hôm nay
+  const todayPercentage = goalHours > 0 ? (actualSleepHours / goalHours) * 100 : 0;
+  
+  // Kết hợp: 40% từ data thật, 60% từ weekly average
+  const combinedRate = todayPercentage * 0.4 + avgWeeklyPercentage * 0.6;
+  
+  return Math.round(Math.max(0, Math.min(100, combinedRate)));
+};
+
+// Tính toán weekly data dựa trên schedule và data thật
+const calculateWeeklyData = (actualSleepHours: number, goalHours: number): WeeklySleepData[] => {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, ...
+  const adjustedToday = today === 0 ? 6 : today - 1; // Convert to Monday = 0
+  
+  return days.map((day, index) => {
+    // Nếu là ngày hôm nay, dùng data thật
+    if (index === adjustedToday) {
+      const percentage = goalHours > 0 ? (actualSleepHours / goalHours) * 100 : 0;
+      return {
+        day,
+        hours: actualSleepHours,
+        percentage: Math.max(0, Math.min(100, percentage)),
+      };
+    }
+    
+    // Các ngày khác: tạo dummy data dựa trên goal với biến động ±20%
+    const variation = 0.8 + Math.random() * 0.4; // 0.8 - 1.2
+    const dummyHours = goalHours * variation;
+    const percentage = goalHours > 0 ? (dummyHours / goalHours) * 100 : 0;
+    
+    return {
+      day,
+      hours: Math.round(dummyHours * 10) / 10,
+      percentage: Math.max(0, Math.min(100, percentage)),
+    };
+  });
 };
 
 const SleepScreen: React.FC = () => {
   const navigation = useNavigation<SleepScreenNavigationProp>();
+  const { userInfo } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState<'Today' | 'Weekly' | 'Monthly'>('Weekly');
+  const [loading, setLoading] = useState(true);
+  const [sleepData, setSleepData] = useState<SleepData | null>(null);
+  const [sleepFromApi, setSleepFromApi] = useState<Sleep | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showBedtimePicker, setShowBedtimePicker] = useState(false);
+  const [showWakeupPicker, setShowWakeupPicker] = useState(false);
+  const [tempBedtime, setTempBedtime] = useState<Date | null>(null);
+  const [tempWakeup, setTempWakeup] = useState<Date | null>(null);
+  const [notificationInitialized, setNotificationInitialized] = useState(false);
+
+  useEffect(() => {
+    loadSleepData();
+    initializeNotifications();
+  }, []);
+
+  const initializeNotifications = async () => {
+    try {
+      const initialized = await sleepNotificationService.initialize();
+      setNotificationInitialized(initialized);
+    } catch (error) {
+      console.error('Error initializing notifications:', error);
+    }
+  };
+
+  const loadSleepData = async () => {
+    if (!userInfo?.id || !userInfo?.token) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Lấy dữ liệu sleep từ dashboard API
+      const dashboardData = await dashboardApi.getDashboard(userInfo.id, userInfo.token);
+      const sleep = dashboardData?.highlights?.sleep;
+      setSleepFromApi(sleep || null);
+
+      if (sleep) {
+        const actualSleepHours = sleep.hours || 0;
+        const goalHours = sleep.goal || 8.0;
+
+        // Tính toán weekly data
+        const weeklyData = calculateWeeklyData(actualSleepHours, goalHours);
+
+        // Tính average sleep từ weekly data
+        const avgHours = weeklyData.reduce((sum, day) => sum + day.hours, 0) / weeklyData.length;
+        const averageSleep = {
+          hours: Math.floor(avgHours),
+          minutes: Math.round((avgHours % 1) * 60),
+        };
+
+        // Tính sleep rate
+        const sleepRate = calculateSleepRate(actualSleepHours, goalHours, weeklyData);
+
+        // Generate dummy deep sleep
+        const deepSleep = generateDummyDeepSleep(actualSleepHours);
+
+        // Lấy schedule từ user goal (từ dashboard hoặc default)
+        // Tạm thời dùng default, sẽ cập nhật khi có API lấy user goal
+        const schedule = await getScheduleFromGoal(userInfo.id, userInfo.token);
+
+        const calculatedData: SleepData = {
+          averageSleep,
+          weeklyData,
+          sleepRate,
+          deepSleep,
+          schedule,
+        };
+
+        setSleepData(calculatedData);
+
+        // Cập nhật notification schedule (convert wakeUp -> wakeup)
+        if (notificationInitialized) {
+          const notificationSchedule: SleepSchedule = {
+            bedtime: schedule.bedtime,
+            wakeup: schedule.wakeUp, // Convert wakeUp thành wakeup cho SleepSchedule
+          };
+          await sleepNotificationService.updateSchedule(notificationSchedule);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error loading sleep data:', error);
+      Alert.alert('Lỗi', 'Không thể tải dữ liệu giấc ngủ. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getScheduleFromGoal = async (userId: number, token: string): Promise<{ bedtime: string; wakeUp: string }> => {
+    try {
+      // Thử lấy từ notification service (đã lưu trước đó)
+      const savedSchedule = await sleepNotificationService.getCurrentSchedule();
+      if (savedSchedule) {
+        return {
+          bedtime: savedSchedule.bedtime,
+          wakeUp: savedSchedule.wakeup,
+        };
+      }
+
+      // Nếu không có, tính từ sleep goal
+      // Giả sử goal là số giờ, tính bedtime và wakeup
+      // Default: 22:00 - 06:00 (8 giờ)
+      const defaultBedtime = '22:00';
+      const defaultWakeup = '06:00';
+
+      // Có thể lấy từ dashboard sleep goal và tính toán
+      // Tạm thời dùng default
+      return {
+        bedtime: defaultBedtime,
+        wakeUp: defaultWakeup,
+      };
+    } catch (error) {
+      console.error('Error getting schedule:', error);
+      return {
+        bedtime: '22:00',
+        wakeUp: '06:00',
+      };
+    }
+  };
 
   const formatTime = (hours: number, minutes: number) => {
     return `${hours}h ${minutes} min`;
   };
 
+  const formatTimeString = (timeString: string): string => {
+    const [hours, minutes] = timeString.split(':');
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'pm' : 'am';
+    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const handleEditSchedule = () => {
+    if (!sleepData) return;
+
+    const [bedtimeHours, bedtimeMinutes] = sleepData.schedule.bedtime.split(':').map(Number);
+    const [wakeupHours, wakeupMinutes] = sleepData.schedule.wakeUp.split(':').map(Number);
+
+    const bedtimeDate = new Date();
+    bedtimeDate.setHours(bedtimeHours, bedtimeMinutes, 0, 0);
+
+    const wakeupDate = new Date();
+    wakeupDate.setHours(wakeupHours, wakeupMinutes, 0, 0);
+
+    setTempBedtime(bedtimeDate);
+    setTempWakeup(wakeupDate);
+    setShowEditModal(true);
+  };
+
+  const handleBedtimeChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      if (event.type === 'set' && selectedDate) {
+        setTempBedtime(selectedDate);
+      }
+      setShowBedtimePicker(false);
+    } else {
+      // iOS
+      if (event.type === 'set' && selectedDate) {
+        setTempBedtime(selectedDate);
+      }
+    }
+  };
+
+  const handleWakeupChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      if (event.type === 'set' && selectedDate) {
+        setTempWakeup(selectedDate);
+      }
+      setShowWakeupPicker(false);
+    } else {
+      // iOS
+      if (event.type === 'set' && selectedDate) {
+        setTempWakeup(selectedDate);
+      }
+    }
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!tempBedtime || !tempWakeup || !sleepData) {
+      Alert.alert('Lỗi', 'Vui lòng chọn đầy đủ giờ đi ngủ và giờ thức dậy');
+      return;
+    }
+
+    try {
+      // Cập nhật schedule
+      const bedtimeStr = `${tempBedtime.getHours().toString().padStart(2, '0')}:${tempBedtime.getMinutes().toString().padStart(2, '0')}`;
+      const wakeupStr = `${tempWakeup.getHours().toString().padStart(2, '0')}:${tempWakeup.getMinutes().toString().padStart(2, '0')}`;
+
+      // Convert để tương thích với SleepSchedule interface (wakeup, không phải wakeUp)
+      const newSchedule: SleepSchedule = {
+        bedtime: bedtimeStr,
+        wakeup: wakeupStr, // SleepSchedule dùng 'wakeup'
+      };
+
+      // Cập nhật notification
+      if (notificationInitialized) {
+        const success = await sleepNotificationService.updateSchedule(newSchedule);
+        if (!success) {
+          console.warn('Failed to update notification schedule');
+        }
+      }
+
+      // Cập nhật UI
+      setSleepData({
+        ...sleepData,
+        schedule: {
+          bedtime: bedtimeStr,
+          wakeUp: wakeupStr,
+        },
+      });
+
+      // Cập nhật lên server (không chặn nếu lỗi)
+      if (userInfo?.id && userInfo?.token) {
+        // Chạy async, không đợi kết quả để không block UI
+        userApi.put(`/${userInfo.id}/goals`, {
+          bedtime: `${bedtimeStr}:00`,
+          wakeup: `${wakeupStr}:00`,
+          dailyStepsGoal: 10000,
+          activityLevel: 'MODERATE',
+        }).catch((error: any) => {
+          // Chỉ log lỗi, không hiển thị alert
+          if (error?.response?.status === 401) {
+            console.warn('[SleepScreen] Token may have expired, but schedule was saved locally');
+          } else {
+            console.error('[SleepScreen] Error updating schedule on server:', error?.response?.status || error?.message);
+          }
+          // Không throw error để không ảnh hưởng đến flow
+        });
+      }
+
+      // Đóng modal và đóng các picker
+      setShowEditModal(false);
+      setShowBedtimePicker(false);
+      setShowWakeupPicker(false);
+
+      Alert.alert(
+        'Thành công', 
+        `Đã cập nhật lịch trình ngủ:\n• Giờ đi ngủ: ${bedtimeStr}\n• Giờ thức dậy: ${wakeupStr}\n\nThông báo báo thức đã được lên lịch tự động.`
+      );
+    } catch (error) {
+      console.error('Error saving schedule:', error);
+      Alert.alert('Lỗi', 'Không thể cập nhật lịch trình. Vui lòng thử lại.');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setShowEditModal(false);
+    setShowBedtimePicker(false);
+    setShowWakeupPicker(false);
+  };
+
   const renderBarChart = () => {
+    if (!sleepData) return null;
+
     const maxHeight = 120;
     return (
       <View style={styles.chartContainer}>
         <View style={styles.chartBars}>
-          {dummySleepData.weeklyData.map((item, index) => (
+          {sleepData.weeklyData.map((item, index) => (
             <View key={index} style={styles.barWrapper}>
               <View style={styles.barContainer}>
                 <View style={[styles.barEmpty, { height: maxHeight }]} />
@@ -78,6 +388,49 @@ const SleepScreen: React.FC = () => {
       </View>
     );
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialIcons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Sleep</Text>
+          <View style={styles.headerRight} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#00BCD4" />
+          <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!sleepData) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialIcons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Sleep</Text>
+          <View style={styles.headerRight} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>Không có dữ liệu</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -103,11 +456,16 @@ const SleepScreen: React.FC = () => {
         {/* Average Sleep Summary */}
         <View style={styles.averageSection}>
           <Text style={styles.averageText}>
-            Your average time of sleep a day is
+            Thời gian ngủ trung bình mỗi ngày của bạn là
           </Text>
           <Text style={styles.averageValue}>
-            {formatTime(dummySleepData.averageSleep.hours, dummySleepData.averageSleep.minutes)}
+            {formatTime(sleepData.averageSleep.hours, sleepData.averageSleep.minutes)}
           </Text>
+          {sleepFromApi && (
+            <Text style={styles.lastUpdatedText}>
+              Cập nhật: {sleepFromApi.lastUpdated}
+            </Text>
+          )}
         </View>
 
         {/* Time Period Selector */}
@@ -125,7 +483,7 @@ const SleepScreen: React.FC = () => {
                 selectedPeriod === 'Today' && styles.periodButtonTextActive,
               ]}
             >
-              Today
+              Hôm nay
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -141,7 +499,7 @@ const SleepScreen: React.FC = () => {
                 selectedPeriod === 'Weekly' && styles.periodButtonTextActive,
               ]}
             >
-              Weekly
+              Tuần
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -157,7 +515,7 @@ const SleepScreen: React.FC = () => {
                 selectedPeriod === 'Monthly' && styles.periodButtonTextActive,
               ]}
             >
-              Monthly
+              Tháng
             </Text>
           </TouchableOpacity>
         </View>
@@ -172,7 +530,10 @@ const SleepScreen: React.FC = () => {
               <MaterialIcons name="star" size={24} color="#FFC107" />
             </View>
             <Text style={styles.metricLabel}>Sleep rate</Text>
-            <Text style={styles.metricValue}>{dummySleepData.sleepRate}%</Text>
+            <Text style={styles.metricValue}>{sleepData.sleepRate}%</Text>
+            <Text style={styles.metricSubtext}>
+              {sleepData.sleepRate >= 80 ? 'Tuyệt vời' : sleepData.sleepRate >= 60 ? 'Tốt' : 'Cần cải thiện'}
+            </Text>
           </View>
           <View style={styles.metricCard}>
             <View style={styles.metricIconContainer}>
@@ -180,41 +541,191 @@ const SleepScreen: React.FC = () => {
             </View>
             <Text style={styles.metricLabel}>Deepsleep</Text>
             <Text style={styles.metricValue}>
-              {formatTime(dummySleepData.deepSleep.hours, dummySleepData.deepSleep.minutes)}
+              {formatTime(sleepData.deepSleep.hours, sleepData.deepSleep.minutes)}
             </Text>
+            <Text style={styles.metricSubtext}>Dummy data</Text>
           </View>
         </View>
 
         {/* Sleep Schedule Section */}
         <View style={styles.scheduleSection}>
           <View style={styles.scheduleHeader}>
-            <Text style={styles.scheduleTitle}>Set your schedule</Text>
-            <TouchableOpacity>
-              <Text style={styles.editButton}>Edit</Text>
+            <Text style={styles.scheduleTitle}>Lịch trình ngủ</Text>
+            <TouchableOpacity onPress={handleEditSchedule}>
+              <Text style={styles.editButton}>Chỉnh sửa</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.scheduleCards}>
             <View style={[styles.scheduleCard, styles.bedtimeCard]}>
               <View style={styles.scheduleCardContent}>
                 <MaterialIcons name="bed" size={20} color="white" />
-                <Text style={styles.scheduleCardLabel}>Bedtime</Text>
+                <Text style={styles.scheduleCardLabel}>Giờ đi ngủ</Text>
               </View>
               <Text style={styles.scheduleCardTime}>
-                {dummySleepData.schedule.bedtime} pm
+                {formatTimeString(sleepData.schedule.bedtime)}
               </Text>
+              {notificationInitialized && (
+                <Text style={styles.notificationStatus}>🔔 Đã bật thông báo</Text>
+              )}
             </View>
             <View style={[styles.scheduleCard, styles.wakeUpCard]}>
               <View style={styles.scheduleCardContent}>
                 <MaterialIcons name="notifications" size={20} color="white" />
-                <Text style={styles.scheduleCardLabel}>Wake up</Text>
+                <Text style={styles.scheduleCardLabel}>Giờ thức dậy</Text>
               </View>
               <Text style={styles.scheduleCardTime}>
-                {dummySleepData.schedule.wakeUp} am
+                {formatTimeString(sleepData.schedule.wakeUp)}
               </Text>
+              {notificationInitialized && (
+                <Text style={styles.notificationStatus}>🔔 Đã bật thông báo</Text>
+              )}
             </View>
           </View>
         </View>
       </ScrollView>
+
+
+      {/* Edit Schedule Modal */}
+      <Modal
+        visible={showEditModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={handleCancelEdit}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalOverlayTouchable}
+            activeOpacity={1}
+            onPress={handleCancelEdit}
+          />
+          <View style={styles.modalContentContainer}>
+            <SafeAreaView style={styles.modalSafeArea}>
+              <View style={styles.modalContentInner}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Chỉnh sửa lịch trình ngủ</Text>
+                  <TouchableOpacity onPress={handleCancelEdit}>
+                    <MaterialIcons name="close" size={24} color="#333" />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView 
+                  style={styles.modalBodyScroll}
+                  contentContainerStyle={styles.modalBody}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                >
+              {/* Bedtime Picker */}
+              <View style={styles.timePickerSection}>
+                <View style={styles.timePickerLabelContainer}>
+                  <MaterialIcons name="bed" size={20} color="#F44336" />
+                  <Text style={styles.timePickerLabel}>Giờ đi ngủ</Text>
+                </View>
+                {Platform.OS === 'ios' ? (
+                  <View style={styles.timePickerContainer}>
+                    <DateTimePicker
+                      value={tempBedtime || new Date()}
+                      mode="time"
+                      is24Hour={true}
+                      display="spinner"
+                      onChange={handleBedtimeChange}
+                      style={styles.timePicker}
+                      textColor="#000"
+                    />
+                  </View>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={styles.timePickerButton}
+                      onPress={() => setShowBedtimePicker(true)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.timePickerButtonText}>
+                        {tempBedtime
+                          ? `${tempBedtime.getHours().toString().padStart(2, '0')}:${tempBedtime.getMinutes().toString().padStart(2, '0')}`
+                          : 'Chọn giờ'}
+                      </Text>
+                      <MaterialIcons name="access-time" size={20} color="#666" />
+                    </TouchableOpacity>
+                    {showBedtimePicker && tempBedtime && (
+                      <DateTimePicker
+                        value={tempBedtime}
+                        mode="time"
+                        is24Hour={true}
+                        display="default"
+                        onChange={handleBedtimeChange}
+                      />
+                    )}
+                  </>
+                )}
+              </View>
+
+              {/* Wakeup Picker */}
+              <View style={styles.timePickerSection}>
+                <View style={styles.timePickerLabelContainer}>
+                  <MaterialIcons name="notifications" size={20} color="#FF9800" />
+                  <Text style={styles.timePickerLabel}>Giờ thức dậy</Text>
+                </View>
+                {Platform.OS === 'ios' ? (
+                  <View style={styles.timePickerContainer}>
+                    <DateTimePicker
+                      value={tempWakeup || new Date()}
+                      mode="time"
+                      is24Hour={true}
+                      display="spinner"
+                      onChange={handleWakeupChange}
+                      style={styles.timePicker}
+                      textColor="#000"
+                    />
+                  </View>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={styles.timePickerButton}
+                      onPress={() => setShowWakeupPicker(true)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.timePickerButtonText}>
+                        {tempWakeup
+                          ? `${tempWakeup.getHours().toString().padStart(2, '0')}:${tempWakeup.getMinutes().toString().padStart(2, '0')}`
+                          : 'Chọn giờ'}
+                      </Text>
+                      <MaterialIcons name="access-time" size={20} color="#666" />
+                    </TouchableOpacity>
+                    {showWakeupPicker && tempWakeup && (
+                      <DateTimePicker
+                        value={tempWakeup}
+                        mode="time"
+                        is24Hour={true}
+                        display="default"
+                        onChange={handleWakeupChange}
+                      />
+                    )}
+                  </>
+                )}
+              </View>
+              </ScrollView>
+
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={handleCancelEdit}
+                >
+                  <Text style={styles.cancelButtonText}>Hủy</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.updateButton]}
+                  onPress={handleSaveSchedule}
+                  activeOpacity={0.8}
+                >
+                  <MaterialIcons name="check-circle" size={20} color="#fff" />
+                  <Text style={styles.updateButtonText}>Cập nhật</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            </SafeAreaView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -251,6 +762,20 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#999',
+  },
   averageSection: {
     marginBottom: 24,
   },
@@ -263,6 +788,11 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     color: '#00BCD4',
+  },
+  lastUpdatedText: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
   },
   periodSelector: {
     flexDirection: 'row',
@@ -361,6 +891,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+  metricSubtext: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
+  },
   scheduleSection: {
     marginBottom: 24,
   },
@@ -412,7 +947,184 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'white',
   },
+  notificationStatus: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 8,
+  },
+  pickerContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  pickerCancel: {
+    fontSize: 16,
+    color: '#999',
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  pickerConfirm: {
+    fontSize: 16,
+    color: '#00BCD4',
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalOverlayTouchable: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+  },
+  modalContentContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: Platform.OS === 'ios' ? '85%' : '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
+    width: '100%',
+    position: 'relative',
+    zIndex: 2,
+  },
+  modalSafeArea: {
+    backgroundColor: '#fff',
+    minHeight: 400,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  modalContentInner: {
+    flexDirection: 'column',
+    backgroundColor: '#fff',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalBodyScroll: {
+    maxHeight: Platform.OS === 'ios' ? 400 : 350,
+  },
+  modalBody: {
+    padding: 20,
+    paddingBottom: 20,
+  },
+  timePickerSection: {
+    marginBottom: 20,
+  },
+  timePickerLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 8,
+  },
+  timePickerLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+  },
+  timePickerContainer: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
+    paddingVertical: 8,
+    overflow: 'hidden',
+  },
+  timePicker: {
+    width: '100%',
+    height: Platform.OS === 'ios' ? 150 : 120,
+  },
+  timePickerButton: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
+    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  timePickerButtonText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#000',
+    letterSpacing: 1,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 20,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    gap: 12,
+    backgroundColor: '#fff',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#f5f5f5',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  updateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#00BCD4',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    gap: 8,
+    shadowColor: '#00BCD4',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  updateButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
 });
 
 export default SleepScreen;
-

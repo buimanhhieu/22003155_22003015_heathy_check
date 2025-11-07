@@ -69,6 +69,14 @@
           "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to track steps."
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#00BCD4",
+          "sounds": []
+        }
+      ],
       "expo-task-manager"
     ]
   }

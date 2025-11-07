@@ -6,7 +6,7 @@ import { UserInfo } from '../types'; // Đảm bảo UserInfo trong types.ts có
 import { clearAllStorage } from '../utils/storageUtils';
 
 // const API_BASE_URL = 'http://192.168.39.112:8080/api/users';
-const API_BASE_URL = 'http://192.168.39.112:8080/api/users';
+const API_BASE_URL = 'http://192.168.1.196:8080/api/users';
 // const API_BASE_URL = 'http://172.20.10.9:8080/api/users';
 // const API_BASE_URL = 'http://172.20.10.8:8080/api/users';
 // const API_BASE_URL = 'http://192.168.178.194:8080/api/users';
@@ -88,6 +88,14 @@ export interface MealLogResponse {
   loggedAt: string;
 }
 
+export interface UserGoal {
+  dailyStepsGoal: number;
+  dailyCaloriesGoal: number;
+  bedtime: string | null; // Format: "HH:mm:ss"
+  wakeup: string | null; // Format: "HH:mm:ss"
+  activityLevel: string;
+}
+
 export const mealLogApi = {
   getMealLogs: async (userId: number, date?: string): Promise<MealLogResponse[]> => {
     const params: any = {};
@@ -110,6 +118,28 @@ export const mealLogApi = {
 
   deleteMealLog: async (userId: number, mealLogId: number): Promise<void> => {
     await userApi.delete(`/${userId}/meal-logs/${mealLogId}`);
+  },
+};
+
+export const userGoalApi = {
+  // Lấy user goal từ dashboard API (vì backend không có GET endpoint riêng)
+  getUserGoal: async (userId: number, token: string): Promise<UserGoal | null> => {
+    try {
+      // Thử lấy từ dashboard API
+      const { dashboardApi } = await import('./dashboardApi');
+      const dashboardData = await dashboardApi.getDashboard(userId, token);
+
+      // Lấy goal từ sleep data trong dashboard
+      const sleepGoal = dashboardData?.highlights?.sleep?.goal || 8.0;
+
+      // Parse bedtime và wakeup từ goal (giả sử goal là số giờ)
+      // Nếu có thông tin từ user goal, sẽ cần endpoint riêng
+      // Tạm thời trả về null và sẽ lấy từ dashboard sleep data
+      return null;
+    } catch (error) {
+      console.error('Error getting user goal:', error);
+      return null;
+    }
   },
 };
 
