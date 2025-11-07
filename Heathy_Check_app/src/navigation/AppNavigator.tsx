@@ -14,6 +14,7 @@ import {
   PostLoginStackParamList,
   DashboardStackParamList,
   ProfileStackParamList,
+  HomeStackParamList,
 } from "./types"; // Giả sử bạn có PostLoginStackParamList
 
 // Import tất cả các màn hình
@@ -37,12 +38,14 @@ import ArticleDetailScreen from "../screens/ArticleDetailScreen";
 import NutritionScreen from "../screens/NutritionScreen";
 import AddMealScreen from "../screens/AddMealScreen";
 import SleepScreen from "../screens/SleepScreen";
+import AllArticlesScreen from "../screens/AllArticlesScreen";
 
 // Khởi tạo các Stack và Tab Navigator
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const PostLoginStack = createNativeStackNavigator<PostLoginStackParamList>();
 const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
+const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
 /**
@@ -98,11 +101,11 @@ function AppFlow() {
       />
       <Tab.Screen
         name="Home"
-        component={HomeScreen}
+        component={HomeStackNavigator}
         options={{
-          title: "Trang chủ",
+          title: "Explore",
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="home" color={color} size={size} />
+            <MaterialCommunityIcons name="compass" color={color} size={size} />
           ),
         }}
       />
@@ -139,6 +142,19 @@ function DashboardStackNavigator() {
       <DashboardStack.Screen name="CycleTracking" component={CycleTrackingScreen} />
       <DashboardStack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
     </DashboardStack.Navigator>
+  );
+}
+
+/**
+ * Home Stack Navigator
+ */
+function HomeStackNavigator() {
+  return (
+    <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+      <HomeStack.Screen name="HomeMain" component={HomeScreen} />
+      <HomeStack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
+      <HomeStack.Screen name="AllArticles" component={AllArticlesScreen} />
+    </HomeStack.Navigator>
   );
 }
 

@@ -53,4 +53,17 @@ export type ProfileStackParamList = {
   };
 };
 
+export type HomeStackParamList = {
+  HomeMain: undefined;
+  ArticleDetail: {
+    articleId: number;
+    title: string;
+    image?: string;
+  };
+  AllArticles: {
+    categoryId?: number;
+    sortBy?: string;
+  };
+};
+
 export type PostLoginOnboardingNavigationProp = NativeStackNavigationProp<PostLoginStackParamList>;
