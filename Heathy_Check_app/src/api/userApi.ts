@@ -1,48 +1,37 @@
 // src/api/userApi.ts
 
-import axios from 'axios';
+import { apiClient, API_BASE_URL } from './config';
+import axios, { AxiosInstance } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UserInfo } from '../types'; // Đảm bảo UserInfo trong types.ts có trường 'token'
+import { UserInfo } from '../types';
 import { clearAllStorage } from '../utils/storageUtils';
+import { authEvents, AUTH_EVENTS } from '../utils/authEvents';
 
-// const API_BASE_URL = 'http://192.168.39.112:8080/api/users'
-const API_BASE_URL = 'http://192.168.1.196:8080/api/users';
-// const API_BASE_URL = 'http://192.168.39.112:8080/api/users';
-// const API_BASE_URL = 'http://172.20.10.9:8080/api/users';
-// const API_BASE_URL = 'http://172.20.10.8:8080/api/users';
-// const API_BASE_URL = 'http://172.20.10.9:8080/api/users';
-
-// const API_BASE_URL = 'http://192.168.178.194:8080/api/users';
-// const API_BASE_URL = 'http://192.168.1.192:8080/api/users';
-const userApi = axios.create({
-  baseURL: API_BASE_URL,
+// Create user API instance with token interceptor
+// Use separate instance to avoid affecting other APIs
+const userApi: AxiosInstance = axios.create({
+  baseURL: `${API_BASE_URL}/users`,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000,
 });
 
-// Interceptor để tự động thêm token vào header
+// Copy interceptors from apiClient
+// Request interceptor: Add token to headers
 userApi.interceptors.request.use(
   async (config) => {
     try {
-      // Lấy chuỗi JSON từ AsyncStorage
       const userInfoString = await AsyncStorage.getItem('userInfo');
-
       if (userInfoString) {
-        // Parse chuỗi thành đối tượng UserInfo
         const userInfo: UserInfo = JSON.parse(userInfoString);
-
-        // ✅ Lấy token từ đối tượng userInfo
         const token = userInfo.token;
-
-        if (token) {
-          // Gắn token vào header Authorization
+        if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
-          console.log('[DEBUG] Token attached to header.'); // Thêm log để kiểm tra
         }
       }
-    } catch (e) {
-      console.error('Error attaching token:', e);
+    } catch (error) {
+      console.error('[UserApi] Error attaching token:', error);
     }
     return config;
   },
@@ -51,23 +40,33 @@ userApi.interceptors.request.use(
   }
 );
 
-// Interceptor để xử lý response lỗi
+// Response interceptor: Handle errors globally (same as apiClient)
 userApi.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    return response;
+  },
   async (error) => {
-    if (error.response?.status === 401) {
-      console.log('[DEBUG] 401 Unauthorized - clearing storage and redirecting to login');
-      // Xóa storage khi token không hợp lệ
+    const originalRequest = error.config as any & { _retry?: boolean };
+
+    // Handle 401 Unauthorized - Token expired or invalid
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
       try {
         await clearAllStorage();
-        console.log('Storage cleared due to 401 error');
+        console.warn('[UserApi] Token expired, cleared storage');
+        authEvents.emit(AUTH_EVENTS.TOKEN_EXPIRED);
       } catch (clearError) {
-        console.error('Error clearing storage:', clearError);
+        console.error('[UserApi] Error clearing storage:', clearError);
       }
     }
+
     return Promise.reject(error);
   }
 );
+
+// Note: Response interceptor đã được xử lý trong config.ts
+// Không cần thêm interceptor ở đây nữa
 
 // Meal Log API functions
 export interface MealLogRequest {

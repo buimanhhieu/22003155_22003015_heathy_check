@@ -1,20 +1,17 @@
-import axios from 'axios';
+import { apiClient, API_BASE_URL } from './config';
+import axios, { AxiosInstance } from 'axios';
 
-
-const API_BASE_URL = 'http://192.168.1.196:8080/api/auth';
-
-// const API_BASE_URL = 'http://192.168.39.112:8080/api/auth';
-// const API_BASE_URL = 'http://172.20.10.8:8080/api/auth';
-// const API_BASE_URL = 'http://172.20.10.9:8080/api/auth';
-
-// const API_BASE_URL = 'http://192.168.178.194:8080/api/auth';
-// const API_BASE_URL = 'http://192.168.1.192:8080/api/auth';
-// const API_BASE_URL = 'http://172.20.10.9:8080/api/auth';
-const authApi = axios.create({
-  baseURL: API_BASE_URL,
+// Create auth API instance with specific base path
+// Use a separate instance to avoid conflicts with other endpoints
+const authApi: AxiosInstance = axios.create({
+  baseURL: `${API_BASE_URL}/auth`,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000,
 });
+
+// Auth endpoints don't need token in request interceptor (login/signup)
+// But we can reuse the response interceptor logic if needed
 
 export default authApi;

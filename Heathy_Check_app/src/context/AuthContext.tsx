@@ -4,6 +4,7 @@ import authApi from "../api/authApi";
 import userApi from "../api/userApi";
 import { AuthResponse, UserInfo } from "../types";
 import { clearAllStorage, hasUserData } from "../utils/storageUtils";
+import { authEvents, AUTH_EVENTS } from "../utils/authEvents";
 
 interface AuthContextType {
   isLoading: boolean;
@@ -172,6 +173,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   useEffect(() => {
     isLoggedIn();
+  }, []);
+
+  // Listen for token expired events from API interceptor
+  useEffect(() => {
+    const handleTokenExpired = () => {
+      console.log('[AuthContext] Token expired event received, logging out...');
+      // Clear state and storage
+      setUserToken(null);
+      setUserInfo(null);
+      setIsProfileComplete(null);
+      // Storage đã được clear trong interceptor rồi
+    };
+
+    authEvents.on(AUTH_EVENTS.TOKEN_EXPIRED, handleTokenExpired);
+
+    return () => {
+      authEvents.off(AUTH_EVENTS.TOKEN_EXPIRED, handleTokenExpired);
+    };
   }, []);
 
   return (

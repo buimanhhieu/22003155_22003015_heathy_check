@@ -48,9 +48,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "eas": {
-        "projectId": "00acfc19-93b3-4440-a7fa-59dc8c0ea606"
-      }
+      "API_BASE_URL": "http://172.20.10.8:8080/api"
     },
     "plugins": [
       "expo-font",

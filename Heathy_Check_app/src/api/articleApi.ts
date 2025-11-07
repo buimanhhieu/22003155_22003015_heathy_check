@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-// const API_BASE_URL = 'http://172.20.10.9:8080/api';
+import { apiClient, API_BASE_URL } from './config';
 
 export interface Article {
     id: number;
@@ -37,11 +35,10 @@ export const articleApi = {
             if (params?.page) queryParams.append('page', params.page.toString());
             if (params?.size) queryParams.append('size', params.size.toString());
 
-            const url = `${API_BASE_URL}/articles${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-            const response = await axios.get(url, {
+            const url = `/articles${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+            const response = await apiClient.get(url, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
                 },
             });
             return response.data;
@@ -58,10 +55,9 @@ export const articleApi = {
     // Lấy article theo ID
     getArticleById: async (articleId: number, token: string): Promise<Article> => {
         try {
-            const response = await axios.get(`${API_BASE_URL}/articles/${articleId}`, {
+            const response = await apiClient.get(`/articles/${articleId}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
                 },
             });
             return response.data;
@@ -74,10 +70,9 @@ export const articleApi = {
     // Lấy tất cả categories
     getCategories: async (token: string): Promise<Category[]> => {
         try {
-            const response = await axios.get(`${API_BASE_URL}/categories`, {
+            const response = await apiClient.get(`/categories`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
                 },
             });
             return response.data;
@@ -99,10 +94,9 @@ export const articleApi = {
     // Vote/Unvote article
     voteArticle: async (articleId: number, token: string): Promise<void> => {
         try {
-            await axios.post(`${API_BASE_URL}/articles/${articleId}/vote`, {}, {
+            await apiClient.post(`/articles/${articleId}/vote`, {}, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
                 },
             });
         } catch (error: any) {
@@ -114,10 +108,9 @@ export const articleApi = {
     // Unvote article
     unvoteArticle: async (articleId: number, token: string): Promise<void> => {
         try {
-            await axios.delete(`${API_BASE_URL}/articles/${articleId}/vote`, {
+            await apiClient.delete(`/articles/${articleId}/vote`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
                 },
             });
         } catch (error: any) {

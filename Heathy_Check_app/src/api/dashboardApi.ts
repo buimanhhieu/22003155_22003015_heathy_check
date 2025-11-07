@@ -1,13 +1,4 @@
-import axios from 'axios';
-
-const API_BASE_URL = 'http://192.168.1.196:8080/api';
-// const API_BASE_URL = 'http://192.168.39.112:8080/api';
-// const API_BASE_URL = 'http://192.168.1.192:8080/api';
-// const API_BASE_URL = 'http://172.20.10.8:8080/api';
-// const API_BASE_URL = 'http://172.20.10.9:8080/api';
-
-// const API_BASE_URL = 'http://172.20.10.9:8080/api';
-// const API_BASE_URL = 'http://172.20.10.8:8080/api';
+import { apiClient, API_BASE_URL } from './config';
 export interface HealthScore {
     score: number;
     status: string;
@@ -76,10 +67,9 @@ export interface DashboardData {
 
 export const dashboardApi = {
     getDashboard: async (userId: number, token: string): Promise<DashboardData> => {
-        const response = await axios.get(`${API_BASE_URL}/users/${userId}/dashboard`, {
+        const response = await apiClient.get(`/users/${userId}/dashboard`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
             },
         });
         return response.data;
@@ -104,7 +94,7 @@ export const dashboardApi = {
 
         try {
             // Thử endpoint goals với cycle data
-            const response = await axios.put(`${API_BASE_URL}/users/${userId}/goals`, {
+            const response = await apiClient.put(`/users/${userId}/goals`, {
                 dailyStepsGoal: 10000,
                 bedtime: "22:00:00",
                 wakeup: "06:00:00",
@@ -114,7 +104,6 @@ export const dashboardApi = {
             }, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
                 },
             });
             console.log('✅ CREATE API - PUT to goals successful');
@@ -129,7 +118,7 @@ export const dashboardApi = {
                 const startDate = new Date(cycleData.lastCycleDate);
                 const endDate = new Date(startDate.getTime() + 5 * 24 * 60 * 60 * 1000);
 
-                const response = await axios.post(`${API_BASE_URL}/users/${userId}/menstrual-cycle`, {
+                const response = await apiClient.post(`/users/${userId}/menstrual-cycle`, {
                     startDate: cycleData.lastCycleDate,
                     endDate: endDate.toISOString().split('T')[0],
                     cycleLength: cycleData.cycleLength
@@ -167,7 +156,7 @@ export const dashboardApi = {
 
         try {
             // Thử endpoint goals với cycle data
-            const response = await axios.put(`${API_BASE_URL}/users/${userId}/goals`, {
+            const response = await apiClient.put(`/users/${userId}/goals`, {
                 dailyStepsGoal: 10000,
                 bedtime: "22:00:00",
                 wakeup: "06:00:00",
@@ -177,7 +166,6 @@ export const dashboardApi = {
             }, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
                 },
             });
             console.log('✅ UPDATE API - PUT to goals successful');
@@ -192,7 +180,7 @@ export const dashboardApi = {
                 const startDate = new Date(cycleData.lastCycleDate);
                 const endDate = new Date(startDate.getTime() + 5 * 24 * 60 * 60 * 1000);
 
-                const response = await axios.put(`${API_BASE_URL}/users/${userId}/menstrual-cycle`, {
+                const response = await apiClient.put(`/users/${userId}/menstrual-cycle`, {
                     startDate: cycleData.lastCycleDate,
                     endDate: endDate.toISOString().split('T')[0],
                     cycleLength: cycleData.cycleLength
