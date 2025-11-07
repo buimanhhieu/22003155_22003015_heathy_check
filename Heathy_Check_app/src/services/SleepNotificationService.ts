@@ -250,9 +250,10 @@ class SleepNotificationService {
             }
 
             // QUAN TRỌNG: Kiểm tra kỹ để tránh trigger ngay
-            // Nếu thời gian đã qua hôm nay HOẶC quá gần (<= 5 phút), schedule cho ngày mai
-            // LUÔN schedule cho ngày mai để tránh trigger ngay, sau đó sẽ schedule lại khi cần
-            const isPastOrTooClose = timeDiff <= 300000; // <= 5 phút (300000ms) hoặc đã qua
+            // Tăng threshold lên 15 phút để đảm bảo không trigger ngay
+            // Nếu thời gian đã qua hôm nay HOẶC quá gần (<= 15 phút), schedule cho ngày mai
+            const MIN_DELAY_MS = 900000; // 15 phút
+            const isPastOrTooClose = timeDiff <= MIN_DELAY_MS;
 
             if (isPastOrTooClose) {
                 // Đã qua hoặc quá gần - schedule cho ngày mai bằng date trigger
@@ -267,9 +268,9 @@ class SleepNotificationService {
                     repeats: false,
                 };
 
-                console.warn(`[SleepNotification] Bedtime ${bedtime} is ${timeDiff <= 0 ? 'past' : 'too close'} (current: ${currentHour}:${currentMinute}:${currentSecond}), scheduling for tomorrow at ${tomorrowTrigger.toLocaleString('vi-VN')}`);
+                console.warn(`[SleepNotification] Bedtime ${bedtime} is ${timeDiff <= 0 ? 'past' : 'too close'} (current: ${currentHour}:${currentMinute}:${currentSecond}, diff: ${Math.round(timeDiff / 60000)} min), scheduling for tomorrow at ${tomorrowTrigger.toLocaleString('vi-VN')}`);
             } else {
-                // Đủ xa trong tương lai (hơn 5 phút) - schedule cho hôm nay
+                // Đủ xa trong tương lai (hơn 15 phút) - schedule cho hôm nay
                 notificationConfig.trigger = {
                     date: todayTrigger,
                     repeats: false,
@@ -278,12 +279,9 @@ class SleepNotificationService {
                 console.log(`[SleepNotification] Scheduled bedtime notification for today at ${todayTrigger.toLocaleString('vi-VN')} (in ${Math.round(timeDiff / 60000)} minutes)`);
             }
 
+            // Chỉ schedule 1 notification - đảm bảo không duplicate
             const notificationId = await Notif.scheduleNotificationAsync(notificationConfig);
-
-            // KHÔNG schedule notification hàng ngày với hour/minute vì có thể trigger ngay
-            // Chỉ dùng date trigger để kiểm soát chính xác thời gian
-
-            console.log(`[SleepNotification] Bedtime notification scheduled with ID: ${notificationId}`);
+            console.log(`[SleepNotification] Bedtime notification scheduled with ID: ${notificationId}, trigger: ${JSON.stringify(notificationConfig.trigger)}`);
 
             return notificationId;
         } catch (error) {
@@ -328,9 +326,10 @@ class SleepNotificationService {
             }
 
             // QUAN TRỌNG: Kiểm tra kỹ để tránh trigger ngay
-            // Nếu thời gian đã qua hôm nay HOẶC quá gần (<= 5 phút), schedule cho ngày mai
-            // LUÔN schedule cho ngày mai để tránh trigger ngay, sau đó sẽ schedule lại khi cần
-            const isPastOrTooClose = timeDiff <= 300000; // <= 5 phút (300000ms) hoặc đã qua
+            // Tăng threshold lên 15 phút để đảm bảo không trigger ngay
+            // Nếu thời gian đã qua hôm nay HOẶC quá gần (<= 15 phút), schedule cho ngày mai
+            const MIN_DELAY_MS = 900000; // 15 phút
+            const isPastOrTooClose = timeDiff <= MIN_DELAY_MS;
 
             if (isPastOrTooClose) {
                 // Đã qua hoặc quá gần - schedule cho ngày mai bằng date trigger
@@ -345,9 +344,9 @@ class SleepNotificationService {
                     repeats: false,
                 };
 
-                console.warn(`[SleepNotification] Wakeup ${wakeup} is ${timeDiff <= 0 ? 'past' : 'too close'} (current: ${currentHour}:${currentMinute}:${currentSecond}), scheduling for tomorrow at ${tomorrowTrigger.toLocaleString('vi-VN')}`);
+                console.warn(`[SleepNotification] Wakeup ${wakeup} is ${timeDiff <= 0 ? 'past' : 'too close'} (current: ${currentHour}:${currentMinute}:${currentSecond}, diff: ${Math.round(timeDiff / 60000)} min), scheduling for tomorrow at ${tomorrowTrigger.toLocaleString('vi-VN')}`);
             } else {
-                // Đủ xa trong tương lai (hơn 5 phút) - schedule cho hôm nay
+                // Đủ xa trong tương lai (hơn 15 phút) - schedule cho hôm nay
                 notificationConfig.trigger = {
                     date: todayTrigger,
                     repeats: false,
@@ -356,12 +355,9 @@ class SleepNotificationService {
                 console.log(`[SleepNotification] Scheduled wakeup notification for today at ${todayTrigger.toLocaleString('vi-VN')} (in ${Math.round(timeDiff / 60000)} minutes)`);
             }
 
+            // Chỉ schedule 1 notification - đảm bảo không duplicate
             const notificationId = await Notif.scheduleNotificationAsync(notificationConfig);
-
-            // KHÔNG schedule notification hàng ngày với hour/minute vì có thể trigger ngay
-            // Chỉ dùng date trigger để kiểm soát chính xác thời gian
-
-            console.log(`[SleepNotification] Wakeup notification scheduled with ID: ${notificationId}`);
+            console.log(`[SleepNotification] Wakeup notification scheduled with ID: ${notificationId}, trigger: ${JSON.stringify(notificationConfig.trigger)}`);
 
             return notificationId;
         } catch (error) {
@@ -392,18 +388,48 @@ class SleepNotificationService {
             await this.cancelExistingNotifications();
 
             // Đợi lâu hơn để đảm bảo notifications cũ đã được hủy hoàn toàn
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Kiểm tra lại xem đã hủy hết chưa - kiểm tra nhiều lần để đảm bảo
+            for (let i = 0; i < 3; i++) {
+                try {
+                    const Notif = await getNotifications();
+                    const remainingNotifications = await Notif.getAllScheduledNotificationsAsync();
+                    const sleepNotifications = remainingNotifications.filter((notif: any) => {
+                        const title = notif.content?.title || '';
+                        return title.includes('giờ đi ngủ') || title.includes('giờ thức dậy') ||
+                            title.includes('Đã đến giờ đi ngủ') || title.includes('Đã đến giờ thức dậy');
+                    });
+                    if (sleepNotifications.length > 0) {
+                        console.warn(`[SleepNotification] Attempt ${i + 1}: Still found ${sleepNotifications.length} sleep notifications, canceling again...`);
+                        for (const notif of sleepNotifications) {
+                            try {
+                                await Notif.cancelScheduledNotificationAsync(notif.identifier);
+                                console.log(`[SleepNotification] Canceled notification: ${notif.identifier}`);
+                            } catch (cancelError) {
+                                console.warn(`[SleepNotification] Could not cancel ${notif.identifier}:`, cancelError);
+                            }
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    } else {
+                        console.log(`[SleepNotification] All sleep notifications canceled successfully after ${i + 1} attempt(s)`);
+                        break;
+                    }
+                } catch (error) {
+                    console.warn(`[SleepNotification] Error checking remaining notifications (attempt ${i + 1}):`, error);
+                }
+            }
 
             // Lên lịch thông báo mới - đảm bảo schedule riêng biệt
             console.log('[SleepNotification] Step 2: Scheduling new notifications...');
 
-            // Schedule bedtime notification
+            // Schedule bedtime notification (chỉ 1 lần)
             this.bedtimeNotificationId = await this.scheduleBedtimeNotification(schedule.bedtime);
-            await new Promise(resolve => setTimeout(resolve, 300)); // Đợi giữa các notification
+            await new Promise(resolve => setTimeout(resolve, 500)); // Đợi giữa các notification
 
-            // Schedule wakeup notification
+            // Schedule wakeup notification (chỉ 1 lần)
             this.wakeupNotificationId = await this.scheduleWakeupNotification(schedule.wakeup);
-            await new Promise(resolve => setTimeout(resolve, 300)); // Đợi sau khi schedule xong
+            await new Promise(resolve => setTimeout(resolve, 500)); // Đợi sau khi schedule xong
 
             // Lưu schedule và notification IDs
             await this.saveSchedule(schedule);
@@ -427,8 +453,17 @@ class SleepNotificationService {
     private async loadAndScheduleNotifications(): Promise<void> {
         try {
             const schedule = await this.loadSchedule();
-            if (schedule) {
-                await this.updateSchedule(schedule);
+            if (schedule && schedule.bedtime && schedule.wakeup) {
+                // Chỉ load và schedule lại nếu có schedule hợp lệ
+                // KHÔNG gọi updateSchedule để tránh duplicate scheduling
+                // Chỉ schedule lại nếu chưa có notifications
+                const ids = await this.loadNotificationIds();
+                if (!ids.bedtime || !ids.wakeup) {
+                    console.log('[SleepNotification] No existing notifications found, scheduling from saved schedule');
+                    await this.updateSchedule(schedule);
+                } else {
+                    console.log('[SleepNotification] Existing notifications found, skipping auto-schedule');
+                }
             }
         } catch (error) {
             console.error('Error loading and scheduling notifications:', error);
