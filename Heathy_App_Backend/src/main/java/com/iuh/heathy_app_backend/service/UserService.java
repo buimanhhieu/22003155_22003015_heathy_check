@@ -13,7 +13,9 @@ import com.iuh.heathy_app_backend.repository.UserGoalRepository;
 import com.iuh.heathy_app_backend.repository.UserProfileRepository;
 import com.iuh.heathy_app_backend.repository.UserRepository;
 import com.iuh.heathy_app_backend.repository.MenstrualCycleRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,10 @@ public class UserService {
     private RedisTemplate<String, Object> redisTemplate;
     
     @Autowired
+    private ObjectMapper objectMapper;
+    
+    @Autowired
+    @Lazy
     private DashboardService dashboardService;
     
     private static final String USER_PROFILE_CACHE_KEY = "user:profile:";
@@ -59,9 +65,15 @@ public class UserService {
         String cacheKey = USER_PROFILE_CACHE_KEY + userId;
         
         // Kiểm tra cache
-        UserProfileResponseDTO cachedProfile = (UserProfileResponseDTO) redisTemplate.opsForValue().get(cacheKey);
-        if (cachedProfile != null) {
-            return cachedProfile;
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            // Convert từ LinkedHashMap hoặc Object sang DTO
+            if (cached instanceof UserProfileResponseDTO) {
+                return (UserProfileResponseDTO) cached;
+            } else {
+                // Nếu là LinkedHashMap, convert sang DTO
+                return objectMapper.convertValue(cached, UserProfileResponseDTO.class);
+            }
         }
         
         // Query từ database
@@ -93,9 +105,15 @@ public class UserService {
         String cacheKey = USER_GOALS_CACHE_KEY + userId;
         
         // Kiểm tra cache
-        UserGoal cachedGoal = (UserGoal) redisTemplate.opsForValue().get(cacheKey);
-        if (cachedGoal != null) {
-            return cachedGoal;
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            // Convert từ LinkedHashMap hoặc Object sang UserGoal
+            if (cached instanceof UserGoal) {
+                return (UserGoal) cached;
+            } else {
+                // Nếu là LinkedHashMap, convert sang UserGoal
+                return objectMapper.convertValue(cached, UserGoal.class);
+            }
         }
         
         // Query từ database

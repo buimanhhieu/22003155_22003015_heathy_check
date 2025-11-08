@@ -7,6 +7,8 @@ import com.iuh.heathy_app_backend.entity.User;
 import com.iuh.heathy_app_backend.repository.ArticleRepository;
 import com.iuh.heathy_app_backend.repository.ArticleVoteRepository;
 import com.iuh.heathy_app_backend.repository.UserRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,9 @@ public class ArticleService {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
+    
+    @Autowired
+    private ObjectMapper objectMapper;
     
     private static final String ARTICLES_CACHE_PREFIX = "articles:";
     private static final long ARTICLES_CACHE_TTL = 30; // 30 phút
@@ -47,11 +52,14 @@ public class ArticleService {
         String cacheKey = buildArticlesCacheKey(keyword, categoryId, sortBy);
         
         // Kiểm tra cache
-        List<ArticleResponseDTO> cachedArticles = (List<ArticleResponseDTO>) redisTemplate.opsForValue().get(cacheKey);
-        
-        if (cachedArticles != null) {
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
             System.out.println("[ArticleService] Cache HIT for articles: " + cacheKey);
-            return cachedArticles;
+            // Convert từ LinkedHashMap hoặc Object sang List<ArticleResponseDTO>
+            if (cached instanceof List) {
+                return objectMapper.convertValue(cached, new TypeReference<List<ArticleResponseDTO>>() {});
+            }
+            return (List<ArticleResponseDTO>) cached;
         }
         
         System.out.println("[ArticleService] Cache MISS for articles: " + cacheKey);
@@ -106,9 +114,14 @@ public class ArticleService {
         String cacheKey = ARTICLES_CACHE_PREFIX + "detail:" + articleId + ":user:" + userId;
         
         // Kiểm tra cache
-        ArticleResponseDTO cachedArticle = (ArticleResponseDTO) redisTemplate.opsForValue().get(cacheKey);
-        if (cachedArticle != null) {
-            return cachedArticle;
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            // Convert từ LinkedHashMap hoặc Object sang ArticleResponseDTO
+            if (cached instanceof ArticleResponseDTO) {
+                return (ArticleResponseDTO) cached;
+            } else {
+                return objectMapper.convertValue(cached, ArticleResponseDTO.class);
+            }
         }
         
         // Query từ database

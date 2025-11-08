@@ -6,6 +6,8 @@ import com.iuh.heathy_app_backend.entity.HealthMetricType;
 import com.iuh.heathy_app_backend.entity.User;
 import com.iuh.heathy_app_backend.repository.HealthDataEntryRepository;
 import com.iuh.heathy_app_backend.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,10 @@ public class HealthDataService {
     
     private final HealthDataEntryRepository healthDataEntryRepository;
     private final UserRepository userRepository;
+    
+    @Autowired
+    @Lazy
+    private DashboardService dashboardService;
     
     public HealthDataService(HealthDataEntryRepository healthDataEntryRepository, UserRepository userRepository) {
         this.healthDataEntryRepository = healthDataEntryRepository;
@@ -42,7 +48,12 @@ public class HealthDataService {
             entry.setRecordedAt(OffsetDateTime.now());
         }
         
-        return healthDataEntryRepository.save(entry);
+        HealthDataEntry savedEntry = healthDataEntryRepository.save(entry);
+        
+        // Invalidate dashboard cache vì health data ảnh hưởng đến dashboard
+        dashboardService.invalidateDashboardCache(userId);
+        
+        return savedEntry;
     }
     
     @Transactional(readOnly = true)
@@ -108,7 +119,12 @@ public class HealthDataService {
             entry.setRecordedAt(healthDataDTO.getRecordedAt());
         }
         
-        return healthDataEntryRepository.save(entry);
+        HealthDataEntry savedEntry = healthDataEntryRepository.save(entry);
+        
+        // Invalidate dashboard cache
+        dashboardService.invalidateDashboardCache(userId);
+        
+        return savedEntry;
     }
     
     @Transactional
@@ -121,6 +137,9 @@ public class HealthDataService {
         }
         
         healthDataEntryRepository.delete(entry);
+        
+        // Invalidate dashboard cache
+        dashboardService.invalidateDashboardCache(userId);
     }
     
     @Transactional(readOnly = true)

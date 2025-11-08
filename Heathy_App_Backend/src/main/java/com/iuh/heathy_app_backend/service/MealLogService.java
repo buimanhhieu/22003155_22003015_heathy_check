@@ -7,7 +7,10 @@ import com.iuh.heathy_app_backend.entity.MealType;
 import com.iuh.heathy_app_backend.entity.User;
 import com.iuh.heathy_app_backend.repository.MealLogRepository;
 import com.iuh.heathy_app_backend.repository.UserRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +31,10 @@ public class MealLogService {
     private RedisTemplate<String, Object> redisTemplate;
     
     @Autowired
+    private ObjectMapper objectMapper;
+    
+    @Autowired
+    @Lazy
     private DashboardService dashboardService;
     
     private static final String MEAL_LOGS_CACHE_KEY = "meal-logs:";
@@ -185,9 +192,13 @@ public class MealLogService {
         String cacheKey = MEAL_LOGS_CACHE_KEY + userId + ":" + dateStr;
         
         // Kiểm tra cache
-        List<MealLogResponseDTO> cachedMealLogs = (List<MealLogResponseDTO>) redisTemplate.opsForValue().get(cacheKey);
-        if (cachedMealLogs != null) {
-            return cachedMealLogs;
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            // Convert từ LinkedHashMap hoặc Object sang List<MealLogResponseDTO>
+            if (cached instanceof List) {
+                return objectMapper.convertValue(cached, new TypeReference<List<MealLogResponseDTO>>() {});
+            }
+            return (List<MealLogResponseDTO>) cached;
         }
         
         // Query từ database

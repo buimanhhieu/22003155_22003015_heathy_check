@@ -3,6 +3,8 @@ package com.iuh.heathy_app_backend.controller;
 import com.iuh.heathy_app_backend.dto.CategoryDTO;
 import com.iuh.heathy_app_backend.entity.Category;
 import com.iuh.heathy_app_backend.repository.CategoryRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +24,9 @@ public class CategoryController {
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
     
+    @Autowired
+    private ObjectMapper objectMapper;
+    
     private static final String CATEGORIES_CACHE_KEY = "categories:all";
     private static final String CATEGORY_CACHE_KEY = "category:";
     private static final long CATEGORIES_CACHE_TTL = 24; // 24 giờ
@@ -35,14 +40,17 @@ public class CategoryController {
      * GET /api/categories
      */
     @GetMapping
-    @SuppressWarnings("unchecked")
     public ResponseEntity<List<CategoryDTO>> getAllCategories() {
         // 1. Kiểm tra cache
-        List<CategoryDTO> cachedCategories = (List<CategoryDTO>) redisTemplate.opsForValue().get(CATEGORIES_CACHE_KEY);
-        
-        if (cachedCategories != null) {
+        Object cached = redisTemplate.opsForValue().get(CATEGORIES_CACHE_KEY);
+        if (cached != null) {
             System.out.println("[CategoryController] Cache HIT for categories");
-            return ResponseEntity.ok(cachedCategories);
+            // Convert từ LinkedHashMap hoặc Object sang List<CategoryDTO>
+            if (cached instanceof List) {
+                List<CategoryDTO> cachedCategories = objectMapper.convertValue(cached, new TypeReference<List<CategoryDTO>>() {});
+                return ResponseEntity.ok(cachedCategories);
+            }
+            return ResponseEntity.ok((List<CategoryDTO>) cached);
         }
         
         System.out.println("[CategoryController] Cache MISS for categories");
@@ -68,9 +76,15 @@ public class CategoryController {
         String cacheKey = CATEGORY_CACHE_KEY + id;
         
         // Kiểm tra cache
-        CategoryDTO cachedCategory = (CategoryDTO) redisTemplate.opsForValue().get(cacheKey);
-        if (cachedCategory != null) {
-            return ResponseEntity.ok(cachedCategory);
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            // Convert từ LinkedHashMap hoặc Object sang CategoryDTO
+            if (cached instanceof CategoryDTO) {
+                return ResponseEntity.ok((CategoryDTO) cached);
+            } else {
+                CategoryDTO cachedCategory = objectMapper.convertValue(cached, CategoryDTO.class);
+                return ResponseEntity.ok(cachedCategory);
+            }
         }
         
         // Query từ database

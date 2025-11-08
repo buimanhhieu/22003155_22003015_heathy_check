@@ -3,6 +3,8 @@ package com.iuh.heathy_app_backend.service;
 import com.iuh.heathy_app_backend.dto.*;
 import com.iuh.heathy_app_backend.entity.*;
 import com.iuh.heathy_app_backend.repository.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -37,17 +39,25 @@ public class DashboardService {
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
     
+    @Autowired
+    private ObjectMapper objectMapper;
+    
     private static final String DASHBOARD_CACHE_KEY = "dashboard:";
     private static final long DASHBOARD_CACHE_TTL = 10; // 10 phút
     
     public DashboardDTO getDashboardData(Long userId) {
         // 1. Kiểm tra cache trước
         String cacheKey = DASHBOARD_CACHE_KEY + userId;
-        DashboardDTO cachedDashboard = (DashboardDTO) redisTemplate.opsForValue().get(cacheKey);
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
         
-        if (cachedDashboard != null) {
+        if (cached != null) {
             System.out.println("[DashboardService] Cache HIT for userId: " + userId);
-            return cachedDashboard;
+            // Convert từ LinkedHashMap hoặc Object sang DashboardDTO
+            if (cached instanceof DashboardDTO) {
+                return (DashboardDTO) cached;
+            } else {
+                return objectMapper.convertValue(cached, DashboardDTO.class);
+            }
         }
         
         System.out.println("[DashboardService] Cache MISS for userId: " + userId);
