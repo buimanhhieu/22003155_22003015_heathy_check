@@ -78,6 +78,8 @@ public class WebSecurityConfig {
                         auth.requestMatchers("/api/auth/**").permitAll()
                                 // Dòng này cực kỳ quan trọng, cho phép trình duyệt gửi yêu cầu kiểm tra
                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                                // Cho phép WebSocket endpoint
+                                .requestMatchers("/ws/**").permitAll()
                                 .anyRequest().authenticated()
                 );
 

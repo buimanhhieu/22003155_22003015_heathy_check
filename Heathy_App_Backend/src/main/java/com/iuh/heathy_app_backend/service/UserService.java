@@ -13,12 +13,16 @@ import com.iuh.heathy_app_backend.repository.UserGoalRepository;
 import com.iuh.heathy_app_backend.repository.UserProfileRepository;
 import com.iuh.heathy_app_backend.repository.UserRepository;
 import com.iuh.heathy_app_backend.repository.MenstrualCycleRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class UserService {
@@ -27,6 +31,16 @@ public class UserService {
     private final UserGoalRepository userGoalRepository;
     private final MenstrualCycleRepository menstrualCycleRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+    
+    @Autowired
+    private DashboardService dashboardService;
+    
+    private static final String USER_PROFILE_CACHE_KEY = "user:profile:";
+    private static final String USER_GOALS_CACHE_KEY = "user:goals:";
+    private static final long USER_CACHE_TTL = 30; // 30 phút
 
     public UserService(UserProfileRepository userProfileRepository, UserRepository userRepository, UserGoalRepository userGoalRepository, MenstrualCycleRepository menstrualCycleRepository, PasswordEncoder passwordEncoder) {
         this.userProfileRepository = userProfileRepository;
@@ -42,13 +56,22 @@ public class UserService {
     }
 
     public UserProfileResponseDTO getUserProfileResponse(Long userId) {
+        String cacheKey = USER_PROFILE_CACHE_KEY + userId;
+        
+        // Kiểm tra cache
+        UserProfileResponseDTO cachedProfile = (UserProfileResponseDTO) redisTemplate.opsForValue().get(cacheKey);
+        if (cachedProfile != null) {
+            return cachedProfile;
+        }
+        
+        // Query từ database
         UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElse(new UserProfile());
         
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
         
-        return new UserProfileResponseDTO(
+        UserProfileResponseDTO profileDTO = new UserProfileResponseDTO(
             profile.getUserId(),
             user.getFullName(),
             user.getEmail(),
@@ -59,8 +82,33 @@ public class UserService {
             profile.getWeightKg(),
             profile.getGender()
         );
+        
+        // Lưu vào cache
+        redisTemplate.opsForValue().set(cacheKey, profileDTO, USER_CACHE_TTL, TimeUnit.MINUTES);
+        
+        return profileDTO;
     }
-
+    
+    public UserGoal getUserGoal(Long userId) {
+        String cacheKey = USER_GOALS_CACHE_KEY + userId;
+        
+        // Kiểm tra cache
+        UserGoal cachedGoal = (UserGoal) redisTemplate.opsForValue().get(cacheKey);
+        if (cachedGoal != null) {
+            return cachedGoal;
+        }
+        
+        // Query từ database
+        Optional<UserGoal> goalOpt = userGoalRepository.findByUserId(userId);
+        UserGoal goal = goalOpt.orElse(new UserGoal());
+        
+        // Lưu vào cache (chỉ cache nếu có goal)
+        if (goalOpt.isPresent()) {
+            redisTemplate.opsForValue().set(cacheKey, goal, USER_CACHE_TTL, TimeUnit.MINUTES);
+        }
+        
+        return goal;
+    }
 
     @Transactional
     public UserProfile updateUserProfile(Long userId, UserProfileUpdateDTO profileDto) {
@@ -81,7 +129,13 @@ public class UserService {
         userProfile.setWeightKg(profileDto.getWeightKg());
         userProfile.setGender(profileDto.getGender()); // Cập nhật gender
 
-        return userProfileRepository.save(userProfile);
+        UserProfile updatedProfile = userProfileRepository.save(userProfile);
+        
+        // Invalidate cache
+        invalidateUserProfileCache(userId);
+        dashboardService.invalidateDashboardCache(userId); // Dashboard phụ thuộc vào profile
+        
+        return updatedProfile;
     }
 
 
@@ -110,7 +164,13 @@ public class UserService {
         userGoal.setDailyCaloriesGoal(dailyCaloriesGoal);
         userGoal.setActivityLevel(goalDto.getActivityLevel());
 
-        return userGoalRepository.save(userGoal);
+        UserGoal updatedGoal = userGoalRepository.save(userGoal);
+        
+        // Invalidate cache
+        invalidateUserGoalsCache(userId);
+        dashboardService.invalidateDashboardCache(userId); // Dashboard phụ thuộc vào goals
+        
+        return updatedGoal;
     }
 
     @Transactional
@@ -131,7 +191,12 @@ public class UserService {
             cycle.setEndDate(cycleRequest.getStartDate().plusDays(periodLength));
         }
         
-        return menstrualCycleRepository.save(cycle);
+        MenstrualCycle savedCycle = menstrualCycleRepository.save(cycle);
+        
+        // Invalidate dashboard cache vì cycle tracking có trong dashboard
+        dashboardService.invalidateDashboardCache(userId);
+        
+        return savedCycle;
     }
 
     @Transactional
@@ -159,7 +224,12 @@ public class UserService {
             existingCycle.setEndDate(cycleRequest.getStartDate().plusDays(periodLength));
         }
         
-        return menstrualCycleRepository.save(existingCycle);
+        MenstrualCycle savedCycle = menstrualCycleRepository.save(existingCycle);
+        
+        // Invalidate dashboard cache vì cycle tracking có trong dashboard
+        dashboardService.invalidateDashboardCache(userId);
+        
+        return savedCycle;
     }
 
     /**
@@ -183,6 +253,16 @@ public class UserService {
         user.setPasswordHash(encodedNewPassword);
         
         userRepository.save(user);
+    }
+    
+    private void invalidateUserProfileCache(Long userId) {
+        String cacheKey = USER_PROFILE_CACHE_KEY + userId;
+        redisTemplate.delete(cacheKey);
+    }
+    
+    private void invalidateUserGoalsCache(Long userId) {
+        String cacheKey = USER_GOALS_CACHE_KEY + userId;
+        redisTemplate.delete(cacheKey);
     }
 
 }

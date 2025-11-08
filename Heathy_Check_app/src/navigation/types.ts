@@ -11,6 +11,7 @@ export type AuthNavigationProp = NativeStackNavigationProp<AuthStackParamList>;
 export type AppTabParamList = {
   Dashboard: undefined;
   Home: undefined;
+  Support: undefined;
   Profile: undefined;
 };
 

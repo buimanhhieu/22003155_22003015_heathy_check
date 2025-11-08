@@ -4,6 +4,7 @@ import com.iuh.heathy_app_backend.dto.*;
 import com.iuh.heathy_app_backend.entity.*;
 import com.iuh.heathy_app_backend.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -12,6 +13,7 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,7 +34,25 @@ public class DashboardService {
     @Autowired
     private UserGoalRepository userGoalRepository;
     
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+    
+    private static final String DASHBOARD_CACHE_KEY = "dashboard:";
+    private static final long DASHBOARD_CACHE_TTL = 10; // 10 phút
+    
     public DashboardDTO getDashboardData(Long userId) {
+        // 1. Kiểm tra cache trước
+        String cacheKey = DASHBOARD_CACHE_KEY + userId;
+        DashboardDTO cachedDashboard = (DashboardDTO) redisTemplate.opsForValue().get(cacheKey);
+        
+        if (cachedDashboard != null) {
+            System.out.println("[DashboardService] Cache HIT for userId: " + userId);
+            return cachedDashboard;
+        }
+        
+        System.out.println("[DashboardService] Cache MISS for userId: " + userId);
+        
+        // 2. Nếu không có trong cache, query từ database
         DashboardDTO dashboard = new DashboardDTO();
         
         // 1. Health Score
@@ -47,7 +67,17 @@ public class DashboardService {
         // 4. Blogs
         dashboard.setBlogs(getBlogs());
         
+        // 3. Lưu vào cache
+        redisTemplate.opsForValue().set(cacheKey, dashboard, DASHBOARD_CACHE_TTL, TimeUnit.MINUTES);
+        
         return dashboard;
+    }
+    
+    // Method để invalidate cache khi có thay đổi
+    public void invalidateDashboardCache(Long userId) {
+        String cacheKey = DASHBOARD_CACHE_KEY + userId;
+        redisTemplate.delete(cacheKey);
+        System.out.println("[DashboardService] Cache invalidated for userId: " + userId);
     }
     
     private HealthScoreDTO calculateHealthScore(Long userId) {

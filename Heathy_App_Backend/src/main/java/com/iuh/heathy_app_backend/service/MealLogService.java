@@ -7,11 +7,15 @@ import com.iuh.heathy_app_backend.entity.MealType;
 import com.iuh.heathy_app_backend.entity.User;
 import com.iuh.heathy_app_backend.repository.MealLogRepository;
 import com.iuh.heathy_app_backend.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -19,6 +23,15 @@ public class MealLogService {
     
     private final MealLogRepository mealLogRepository;
     private final UserRepository userRepository;
+    
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+    
+    @Autowired
+    private DashboardService dashboardService;
+    
+    private static final String MEAL_LOGS_CACHE_KEY = "meal-logs:";
+    private static final long MEAL_LOGS_CACHE_TTL = 10; // 10 phút
     
     // Default macro distribution: Fat 30%, Protein 30%, Carbs 40%
     private static final double FAT_PERCENTAGE = 0.30;
@@ -56,6 +69,11 @@ public class MealLogService {
         }
         
         MealLog saved = mealLogRepository.save(mealLog);
+        
+        // Invalidate cache
+        invalidateMealLogsCache(userId);
+        dashboardService.invalidateDashboardCache(userId); // Dashboard có nutrition data
+        
         return convertToResponseDTO(saved);
     }
     
@@ -156,18 +174,35 @@ public class MealLogService {
     }
     
     @Transactional(readOnly = true)
+    @SuppressWarnings("unchecked")
     public List<MealLogResponseDTO> getMealLogs(Long userId, java.time.LocalDate date) {
         if (date == null) {
             date = java.time.LocalDate.now();
         }
         
+        // Tạo cache key
+        String dateStr = date.format(DateTimeFormatter.ISO_DATE);
+        String cacheKey = MEAL_LOGS_CACHE_KEY + userId + ":" + dateStr;
+        
+        // Kiểm tra cache
+        List<MealLogResponseDTO> cachedMealLogs = (List<MealLogResponseDTO>) redisTemplate.opsForValue().get(cacheKey);
+        if (cachedMealLogs != null) {
+            return cachedMealLogs;
+        }
+        
+        // Query từ database
         OffsetDateTime startOfDay = date.atStartOfDay().atOffset(OffsetDateTime.now().getOffset());
         OffsetDateTime endOfDay = startOfDay.plusDays(1);
         
         List<MealLog> mealLogs = mealLogRepository.findByUserIdAndDateRange(userId, startOfDay, endOfDay);
-        return mealLogs.stream()
+        List<MealLogResponseDTO> mealLogDTOs = mealLogs.stream()
                 .map(this::convertToResponseDTO)
                 .collect(Collectors.toList());
+        
+        // Lưu vào cache
+        redisTemplate.opsForValue().set(cacheKey, mealLogDTOs, MEAL_LOGS_CACHE_TTL, TimeUnit.MINUTES);
+        
+        return mealLogDTOs;
     }
     
     @Transactional
@@ -201,6 +236,11 @@ public class MealLogService {
         }
         
         MealLog saved = mealLogRepository.save(mealLog);
+        
+        // Invalidate cache
+        invalidateMealLogsCache(userId);
+        dashboardService.invalidateDashboardCache(userId);
+        
         return convertToResponseDTO(saved);
     }
     
@@ -220,6 +260,20 @@ public class MealLogService {
         }
         
         mealLogRepository.delete(mealLog);
+        
+        // Invalidate cache
+        invalidateMealLogsCache(userId);
+        dashboardService.invalidateDashboardCache(userId);
+    }
+    
+    private void invalidateMealLogsCache(Long userId) {
+        // Xóa cache meal logs của user này (có thể dùng pattern matching nếu cần)
+        // Đơn giản nhất là xóa cache của hôm nay và các ngày gần đây
+        java.time.LocalDate today = java.time.LocalDate.now();
+        String todayKey = MEAL_LOGS_CACHE_KEY + userId + ":" + today.format(DateTimeFormatter.ISO_DATE);
+        redisTemplate.delete(todayKey);
+        
+        // Có thể thêm logic để xóa cache của các ngày khác nếu cần
     }
     
     private MealLogResponseDTO convertToResponseDTO(MealLog mealLog) {

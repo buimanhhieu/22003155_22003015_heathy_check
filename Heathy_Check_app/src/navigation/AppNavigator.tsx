@@ -33,6 +33,7 @@ import StepsChartScreen from "../screens/StepsChartScreen";
 import PrivacyPolicyScreen from "../screens/PrivacyPolicyScreen";
 import HelpScreen from "../screens/HelpScreen";
 import AboutScreen from "../screens/AboutScreen";
+import SupportChatScreen from "../screens/SupportChatScreen";
 import CycleTrackingScreen from "../screens/CycleTrackingScreen";
 import ArticleDetailScreen from "../screens/ArticleDetailScreen";
 import NutritionScreen from "../screens/NutritionScreen";
@@ -106,6 +107,16 @@ function AppFlow() {
           title: "Explore",
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="compass" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Support"
+        component={SupportChatScreen}
+        options={{
+          title: "Hỗ trợ",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="robot-happy-outline" color={color} size={size} />
           ),
         }}
       />
