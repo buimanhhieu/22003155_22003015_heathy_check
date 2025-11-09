@@ -18,7 +18,17 @@ public class AuthEntryPointJwt implements AuthenticationEntryPoint {
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
             throws IOException {
-        logger.error("Unauthorized error: {}", authException.getMessage());
+        String uri = request.getRequestURI();
+        String method = request.getMethod();
+        
+        // Chỉ log error cho các requests thực sự (không phải OPTIONS preflight)
+        if (!"OPTIONS".equals(method)) {
+            logger.warn("Unauthorized error for {} {}: {} - Remote: {}", 
+                method, uri, authException.getMessage(), request.getRemoteAddr());
+        } else {
+            logger.debug("OPTIONS preflight request for {} - this is normal", uri);
+        }
+        
         response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Error: Unauthorized");
     }
 }

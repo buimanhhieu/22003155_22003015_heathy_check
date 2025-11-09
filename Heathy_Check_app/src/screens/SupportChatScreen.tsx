@@ -49,11 +49,16 @@ const SupportChatScreen: React.FC = () => {
   }, []);
 
   const handleSendMessage = useCallback(async () => {
-    if (!canSend || !userInfo?.id) {
+    // Prevent duplicate requests
+    if (!canSend || !userInfo?.id || isSending) {
       return;
     }
 
     const trimmed = inputValue.trim();
+    if (!trimmed) {
+      return;
+    }
+
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       sender: 'user',
@@ -82,19 +87,33 @@ const SupportChatScreen: React.FC = () => {
       setMessages((prev) => [...prev, assistantMessage]);
       scrollToEnd();
     } catch (error: any) {
-      const errorMessage: ChatMessage = {
-        id: `error-${Date.now()}`,
-        sender: 'assistant',
-        content:
-          error?.response?.data?.message ??
-          'Xin lỗi, hiện không thể kết nối tới máy chủ. Bạn vui lòng thử lại sau nhé.',
-        timestamp: Date.now(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      console.error('[SupportChat] Error sending message:', error);
+      
+      // Check if it's a 401 error (unauthorized)
+      if (error?.response?.status === 401) {
+        const errorMessage: ChatMessage = {
+          id: `error-${Date.now()}`,
+          sender: 'assistant',
+          content: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      } else {
+        const errorMessage: ChatMessage = {
+          id: `error-${Date.now()}`,
+          sender: 'assistant',
+          content:
+            error?.response?.data?.message ??
+            error?.response?.data?.response ??
+            'Xin lỗi, hiện không thể kết nối tới máy chủ. Bạn vui lòng thử lại sau nhé.',
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
     } finally {
       setIsSending(false);
     }
-  }, [canSend, inputValue, scrollToEnd, userInfo?.id]);
+  }, [canSend, inputValue, scrollToEnd, userInfo?.id, isSending]);
 
   const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
     const isUser = item.sender === 'user';

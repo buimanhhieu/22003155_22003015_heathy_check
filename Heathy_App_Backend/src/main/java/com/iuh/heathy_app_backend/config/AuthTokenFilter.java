@@ -36,6 +36,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
             if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
                 // Using "email" for clarity as it's the identifier
                 String email = jwtUtils.getUserNameFromJwtToken(jwt);
+                logger.debug("Valid JWT token found for user: {}, URI: {}", email, request.getRequestURI());
 
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
                 UsernamePasswordAuthenticationToken authentication =
@@ -48,9 +49,16 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } else if (jwt != null) {
                 logger.warn("JWT token is invalid or expired for request: {}", request.getRequestURI());
+            } else {
+                // Log khi không có token cho các endpoint yêu cầu authentication
+                String uri = request.getRequestURI();
+                if (!uri.startsWith("/api/auth/") && !uri.startsWith("/ws/")) {
+                    logger.debug("No JWT token found in request header for URI: {}", uri);
+                }
             }
         } catch (Exception e) {
-            logger.error("Cannot set user authentication: {}", e.getMessage());
+            logger.error("Cannot set user authentication for URI: {} - Error: {}", 
+                request.getRequestURI(), e.getMessage(), e);
         }
 
         filterChain.doFilter(request, response);

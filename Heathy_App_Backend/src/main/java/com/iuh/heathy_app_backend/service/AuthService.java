@@ -17,6 +17,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 @Service
 public class AuthService {
@@ -57,6 +59,7 @@ public class AuthService {
                 userDetails.getUsername(),
                 userDetails.getFullName());
     }
+    @Transactional
     public MessageResponse registerUser(SignupRequest signUpRequest) {
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
             return new MessageResponse("Error: Email is already in use!");
@@ -67,18 +70,33 @@ public class AuthService {
         user.setFullName(signUpRequest.getFullName());
         user.setProvider("local"); // Đặt provider mặc định
 
-        userRepository.save(user);
+        // Save và flush để có ID ngay lập tức
+        user = userRepository.save(user);
+        userRepository.flush(); // Đảm bảo user được persist và có ID
 
         // Tự động tạo UserProfile cho user mới
-        createDefaultUserProfile(user);
+        try {
+            createDefaultUserProfile(user);
+        } catch (ObjectOptimisticLockingFailureException e) {
+            // Nếu profile đã tồn tại (có thể do retry hoặc duplicate request)
+            // Kiểm tra lại và bỏ qua nếu đã có
+            if (!userProfileRepository.existsById(user.getId())) {
+                throw e; // Nếu thực sự có lỗi, throw lại
+            }
+            // Nếu đã tồn tại, tiếp tục bình thường
+        }
 
         return new MessageResponse("User registered successfully!");
     }
 
     private void createDefaultUserProfile(User user) {
-        // Tạo UserProfile
+        // Kiểm tra xem profile đã tồn tại chưa (tránh duplicate)
+        if (userProfileRepository.existsById(user.getId())) {
+            return; // Profile đã tồn tại, không tạo lại
+        }
+        
+        // Tạo UserProfile mới - chỉ set user, @MapsId sẽ tự động map userId
         UserProfile profile = new UserProfile();
-        profile.setUserId(user.getId());
         profile.setUser(user);
         // Các field khác sẽ được set khi user cập nhật profile
         userProfileRepository.save(profile);
