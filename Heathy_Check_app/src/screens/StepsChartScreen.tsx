@@ -8,7 +8,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { LineChart } from 'react-native-chart-kit';
+import { LineChart, BarChart } from 'react-native-chart-kit';
 import { useAuth } from '../context/AuthContext';
 import { getWeeklySteps, getTodaySteps } from '../services/StepsService';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -184,6 +184,53 @@ const StepsChartScreen: React.FC<any> = ({ navigation }) => {
     propsForLabels: {
       fontSize: 10,
     }
+  };
+
+  // Generate hourly data for today (dummy data based on todaySteps)
+  const generateHourlyData = () => {
+    const hours = ['6AM', '9AM', '12PM', '3PM', '6PM', '9PM'];
+    const distribution = [0.1, 0.15, 0.25, 0.2, 0.2, 0.1]; // Distribution pattern
+    return hours.map((hour, index) => ({
+      hour,
+      steps: Math.round(todaySteps * distribution[index])
+    }));
+  };
+
+  const hourlyData = generateHourlyData();
+  const todayChartData = {
+    labels: hourlyData.map(d => d.hour),
+    datasets: [{
+      data: hourlyData.map(d => d.steps),
+    }]
+  };
+
+  // Generate monthly data (dummy data - 30 days)
+  const generateMonthlyData = () => {
+    const days = 30;
+    const data = [];
+    const avgSteps = weeklyData.length > 0 
+      ? weeklyData.reduce((sum, d) => sum + d.steps, 0) / weeklyData.length 
+      : 8000;
+    
+    for (let i = 1; i <= days; i++) {
+      // Add some variation (±30%)
+      const variation = 0.7 + Math.random() * 0.6;
+      data.push({
+        day: i,
+        steps: Math.round(avgSteps * variation)
+      });
+    }
+    return data;
+  };
+
+  const monthlyData = generateMonthlyData();
+  const monthlyChartData = {
+    labels: monthlyData.filter((_, i) => i % 5 === 0).map(d => d.day.toString()),
+    datasets: [{
+      data: monthlyData.map(d => d.steps),
+      color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+      strokeWidth: 3
+    }]
   };
 
   const CircularProgress = ({ 
@@ -375,11 +422,29 @@ const StepsChartScreen: React.FC<any> = ({ navigation }) => {
           </View>
 
           {/* Chart */}
-          {selectedPeriod === 'weekly' && weeklyData.length > 0 ? (
+          {selectedPeriod === 'today' ? (
+            <View style={styles.chartWrapper}>
+              <BarChart
+                data={todayChartData}
+                width={width - 60}
+                height={220}
+                yAxisLabel=""
+                yAxisSuffix=""
+                chartConfig={chartConfig}
+                style={styles.chart}
+                withInnerLines={true}
+                withVerticalLines={false}
+                withHorizontalLines={true}
+                fromZero={true}
+                showValuesOnTopOfBars={false}
+                flatColor={true}
+              />
+            </View>
+          ) : selectedPeriod === 'weekly' && weeklyData.length > 0 ? (
             <View style={styles.chartWrapper}>
               <LineChart
                 data={chartData}
-                width={width - 100}
+                width={width - 60}
                 height={220}
                 yAxisLabel=""
                 yAxisSuffix=""
@@ -396,15 +461,28 @@ const StepsChartScreen: React.FC<any> = ({ navigation }) => {
                 verticalLabelRotation={0}
               />
             </View>
-          ) : selectedPeriod === 'today' ? (
-            <View style={styles.chartPlaceholder}>
-              <Text style={styles.chartPlaceholderText}>Today's data will be shown here</Text>
+          ) : selectedPeriod === 'monthly' ? (
+            <View style={styles.chartWrapper}>
+              <LineChart
+                data={monthlyChartData}
+                width={width - 60}
+                height={220}
+                yAxisLabel=""
+                yAxisSuffix=""
+                chartConfig={chartConfig}
+                bezier
+                style={styles.chart}
+                withInnerLines={true}
+                withOuterLines={false}
+                withVerticalLines={false}
+                withHorizontalLines={true}
+                fromZero={false}
+                segments={4}
+                yAxisInterval={1}
+                verticalLabelRotation={0}
+              />
             </View>
-          ) : (
-            <View style={styles.chartPlaceholder}>
-              <Text style={styles.chartPlaceholderText}>Monthly data will be shown here</Text>
-            </View>
-          )}
+          ) : null}
         </View>
       </ScrollView>
     </SafeAreaView>

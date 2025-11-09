@@ -49,15 +49,26 @@ userApi.interceptors.response.use(
     const originalRequest = error.config as any & { _retry?: boolean };
 
     // Handle 401 Unauthorized - Token expired or invalid
+    // Only auto-logout for authentication endpoints (signin, refresh token)
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      try {
-        await clearAllStorage();
-        console.warn('[UserApi] Token expired, cleared storage');
-        authEvents.emit(AUTH_EVENTS.TOKEN_EXPIRED);
-      } catch (clearError) {
-        console.error('[UserApi] Error clearing storage:', clearError);
+      const url = error.config?.url || '';
+      const isAuthEndpoint = url.includes('/signin') || url.includes('/signup') || url.includes('/refresh');
+
+      if (isAuthEndpoint) {
+        // Only auto-logout for auth endpoints
+        try {
+          await clearAllStorage();
+          console.warn('[UserApi] Auth endpoint failed with 401, cleared storage');
+          authEvents.emit(AUTH_EVENTS.TOKEN_EXPIRED);
+        } catch (clearError) {
+          console.error('[UserApi] Error clearing storage:', clearError);
+        }
+      } else {
+        // For other endpoints, just log warning and let the caller handle it
+        console.warn('[UserApi] 401 error on non-auth endpoint:', url);
+        console.warn('[UserApi] Token may be expired, but not auto-logging out. Let caller handle it.');
       }
     }
 

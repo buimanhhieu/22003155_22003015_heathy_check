@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,8 @@ import { useAuth } from '../context/AuthContext';
 import { dashboardApi, Sleep } from '../api/dashboardApi';
 import { sleepNotificationService, SleepSchedule } from '../services/SleepNotificationService';
 import userApi from '../api/userApi';
+import { ActivityLevel } from '../types/ActivityLevel';
+import { BarChart, LineChart } from 'react-native-chart-kit';
 
 const { width } = Dimensions.get('window');
 
@@ -311,7 +313,7 @@ const SleepScreen: React.FC = () => {
         }
       }
 
-      // Cập nhật UI
+      // Cập nhật UI ngay lập tức (optimistic update)
       setSleepData({
         ...sleepData,
         schedule: {
@@ -320,34 +322,42 @@ const SleepScreen: React.FC = () => {
         },
       });
 
-      // Cập nhật lên server (không chặn nếu lỗi)
-      if (userInfo?.id && userInfo?.token) {
-        // Chạy async, không đợi kết quả để không block UI
-        userApi.put(`/${userInfo.id}/goals`, {
-          bedtime: `${bedtimeStr}:00`,
-          wakeup: `${wakeupStr}:00`,
-          dailyStepsGoal: 10000,
-          activityLevel: 'MODERATE',
-        }).catch((error: any) => {
-          // Chỉ log lỗi, không hiển thị alert
-          if (error?.response?.status === 401) {
-            console.warn('[SleepScreen] Token may have expired, but schedule was saved locally');
-          } else {
-            console.error('[SleepScreen] Error updating schedule on server:', error?.response?.status || error?.message);
-          }
-          // Không throw error để không ảnh hưởng đến flow
-        });
-      }
-
       // Đóng modal và đóng các picker
       setShowEditModal(false);
       setShowBedtimePicker(false);
       setShowWakeupPicker(false);
 
+      // Hiển thị thông báo thành công ngay
       Alert.alert(
         'Thành công', 
         `Đã cập nhật lịch trình ngủ:\n• Giờ đi ngủ: ${bedtimeStr}\n• Giờ thức dậy: ${wakeupStr}\n\nThông báo báo thức đã được lên lịch tự động.`
       );
+
+      // Đồng bộ lên server (không block UI)
+      if (userInfo?.id && userInfo?.token) {
+        try {
+          await userApi.put(`/${userInfo.id}/goals`, {
+            bedtime: `${bedtimeStr}:00`,
+            wakeup: `${wakeupStr}:00`,
+            dailyStepsGoal: 10000,
+            activityLevel: ActivityLevel.MODERATELY_ACTIVE,
+          });
+          console.log('[SleepScreen] Schedule synced to server successfully');
+        } catch (syncError: any) {
+          // Xử lý lỗi sync một cách graceful
+          console.warn('[SleepScreen] Failed to sync schedule to server:', syncError?.response?.status || syncError?.message);
+          
+          // Không hiển thị lỗi cho user vì dữ liệu đã được lưu local
+          // Chỉ log để debug
+          if (syncError?.response?.status === 401) {
+            console.warn('[SleepScreen] Token may be expired, but schedule was saved locally');
+          } else if (syncError?.response?.status === 404) {
+            console.warn('[SleepScreen] Goals endpoint not found on server');
+          } else {
+            console.warn('[SleepScreen] Network or server error, schedule saved locally only');
+          }
+        }
+      }
     } catch (error) {
       console.error('Error saving schedule:', error);
       Alert.alert('Lỗi', 'Không thể cập nhật lịch trình. Vui lòng thử lại.');
@@ -358,6 +368,76 @@ const SleepScreen: React.FC = () => {
     setShowEditModal(false);
     setShowBedtimePicker(false);
     setShowWakeupPicker(false);
+  };
+
+  // Generate hourly sleep data for Today (dummy data based on actual sleep)
+  const todayChartData = useMemo(() => {
+    if (!sleepData) {
+      console.log('[SleepScreen] todayChartData: no sleepData yet');
+      return { labels: [], data: [] };
+    }
+    
+    const actualSleepHours = sleepData.averageSleep.hours + sleepData.averageSleep.minutes / 60;
+    const hours = ['10PM', '12AM', '2AM', '4AM', '6AM'];
+    
+    // Simulate sleep depth throughout the night
+    // Pattern: light → deep → light (realistic sleep cycle)
+    const sleepDepth = [0.3, 0.8, 1.0, 0.7, 0.4]; // 0-1 scale
+    
+    const result = {
+      labels: hours,
+      data: sleepDepth.map(depth => depth * actualSleepHours)
+    };
+    
+    console.log('[SleepScreen] todayChartData generated:', result);
+    return result;
+  }, [sleepData]);
+
+  // Generate monthly sleep data (30 days)
+  const monthlyChartData = useMemo(() => {
+    if (!sleepData) {
+      console.log('[SleepScreen] monthlyChartData: no sleepData yet');
+      return { labels: [], data: [] };
+    }
+    
+    const avgHours = sleepData.averageSleep.hours + sleepData.averageSleep.minutes / 60;
+    const data = [];
+    
+    for (let i = 1; i <= 30; i++) {
+      // Add variation ±1 hour
+      const variation = 0.85 + Math.random() * 0.3; // 0.85 - 1.15
+      data.push(avgHours * variation);
+    }
+    
+    const result = {
+      labels: data.filter((_, i) => i % 5 === 0).map((_, i) => (i * 5 + 1).toString()),
+      data: data
+    };
+    
+    console.log('[SleepScreen] monthlyChartData generated:', { labelCount: result.labels.length, dataCount: result.data.length });
+    return result;
+  }, [sleepData]);
+
+  const chartConfig = {
+    backgroundColor: '#00BCD4',
+    backgroundGradientFrom: '#00BCD4',
+    backgroundGradientTo: '#0097A7',
+    decimalPlaces: 1,
+    color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+    style: {
+      borderRadius: 16,
+    },
+    propsForDots: {
+      r: '4',
+      strokeWidth: '2',
+      stroke: '#FFFFFF'
+    },
+    propsForBackgroundLines: {
+      strokeDasharray: '',
+      stroke: 'rgba(255, 255, 255, 0.3)',
+      strokeWidth: 1
+    },
   };
 
   const renderBarChart = () => {
@@ -520,8 +600,67 @@ const SleepScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Weekly Sleep Bar Chart */}
+        {/* Sleep Charts */}
+        {selectedPeriod === 'Today' ? (
+          todayChartData.data.length > 0 ? (
+            <View style={styles.chartWrapper}>
+              <BarChart
+                data={{
+                  labels: todayChartData.labels,
+                  datasets: [{ data: todayChartData.data }]
+                }}
+                width={width - 60}
+                height={200}
+                yAxisLabel=""
+                yAxisSuffix="h"
+                chartConfig={chartConfig}
+                style={styles.modernChart}
+                fromZero={true}
+                showValuesOnTopOfBars={false}
+              />
+            </View>
+          ) : (
+            <View style={styles.chartContainer}>
+              <Text style={{ textAlign: 'center', color: '#999' }}>Đang tải biểu đồ...</Text>
+            </View>
+          )
+        ) : null}
+        
         {selectedPeriod === 'Weekly' && renderBarChart()}
+        
+        {selectedPeriod === 'Monthly' ? (
+          monthlyChartData.data.length > 0 ? (
+            <View style={styles.chartWrapper}>
+              <LineChart
+                data={{
+                  labels: monthlyChartData.labels,
+                  datasets: [{ 
+                    data: monthlyChartData.data,
+                    color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                    strokeWidth: 3
+                  }]
+                }}
+                width={width - 60}
+                height={200}
+                yAxisLabel=""
+                yAxisSuffix="h"
+                chartConfig={chartConfig}
+                bezier
+                style={styles.modernChart}
+                withInnerLines={true}
+                withOuterLines={false}
+                withVerticalLines={false}
+                withHorizontalLines={true}
+                fromZero={false}
+                segments={4}
+              />
+            </View>
+          ) : (
+            <View style={styles.chartContainer}>
+              <Text style={{ textAlign: 'center', color: '#999' }}>Đang tải biểu đồ...</Text>
+            </View>
+          )
+        ) : null}
 
         {/* Sleep Metric Summary Cards */}
         <View style={styles.metricsContainer}>
@@ -822,6 +961,18 @@ const styles = StyleSheet.create({
   chartContainer: {
     marginBottom: 24,
     paddingVertical: 16,
+  },
+  chartWrapper: {
+    marginBottom: 24,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#00BCD4',
+    padding: 16,
+    alignItems: 'center',
+  },
+  modernChart: {
+    borderRadius: 16,
+    marginVertical: 0,
   },
   chartBars: {
     flexDirection: 'row',

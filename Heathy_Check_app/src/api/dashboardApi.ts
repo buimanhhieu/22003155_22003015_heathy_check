@@ -1,4 +1,6 @@
 import { apiClient, API_BASE_URL } from './config';
+import { ActivityLevel } from '../types/ActivityLevel';
+
 export interface HealthScore {
     score: number;
     status: string;
@@ -86,7 +88,7 @@ export const dashboardApi = {
             dailyStepsGoal: 10000, // Default value
             bedtime: "22:00:00",   // Default value  
             wakeup: "06:00:00",    // Default value
-            activityLevel: "moderate", // Default value
+            activityLevel: ActivityLevel.MODERATELY_ACTIVE, // Default value
             lastCycleDate: cycleData.lastCycleDate,
             cycleLength: cycleData.cycleLength
         });
@@ -98,7 +100,7 @@ export const dashboardApi = {
                 dailyStepsGoal: 10000,
                 bedtime: "22:00:00",
                 wakeup: "06:00:00",
-                activityLevel: "moderate",
+                activityLevel: ActivityLevel.MODERATELY_ACTIVE,
                 lastCycleDate: cycleData.lastCycleDate,
                 cycleLength: cycleData.cycleLength
             }, {
@@ -148,7 +150,7 @@ export const dashboardApi = {
             dailyStepsGoal: 10000, // Default value
             bedtime: "22:00:00",   // Default value  
             wakeup: "06:00:00",    // Default value
-            activityLevel: "moderate", // Default value
+            activityLevel: ActivityLevel.MODERATELY_ACTIVE, // Default value
             lastCycleDate: cycleData.lastCycleDate,
             cycleLength: cycleData.cycleLength
         });
@@ -160,7 +162,7 @@ export const dashboardApi = {
                 dailyStepsGoal: 10000,
                 bedtime: "22:00:00",
                 wakeup: "06:00:00",
-                activityLevel: "moderate",
+                activityLevel: ActivityLevel.MODERATELY_ACTIVE,
                 lastCycleDate: cycleData.lastCycleDate,
                 cycleLength: cycleData.cycleLength
             }, {

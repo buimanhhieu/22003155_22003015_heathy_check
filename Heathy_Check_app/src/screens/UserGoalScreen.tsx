@@ -8,6 +8,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from "../context/AuthContext";
 import userApi from "../api/userApi";
+import { ActivityLevel, ACTIVITY_LEVEL_INFO } from "../types/ActivityLevel";
 
 // Component con có animation để tái sử dụng
 interface AnimatedViewProps {
@@ -22,42 +23,16 @@ const AnimatedView: React.FC<AnimatedViewProps> = ({ children, delay }) => {
   );
 };
 
-// Định nghĩa các mức độ hoạt động
-const activityLevels = [
-  { 
-    label: "Ít vận động", 
-    description: "Ít hoặc không tập thể dục", 
-    value: "SEDENTARY",
-    icon: "🛋️"
-  },
-  { 
-    label: "Vận động nhẹ", 
-    description: "Tập thể dục nhẹ 1-3 ngày/tuần", 
-    value: "LIGHTLY_ACTIVE",
-    icon: "🚶"
-  },
-  { 
-    label: "Vận động vừa phải", 
-    description: "Tập thể dục vừa phải 3-5 ngày/tuần", 
-    value: "MODERATELY_ACTIVE",
-    icon: "🏃"
-  },
-  { 
-    label: "Vận động nhiều", 
-    description: "Tập thể dục mạnh 6-7 ngày/tuần", 
-    value: "VERY_ACTIVE",
-    icon: "💪"
-  },
-  { 
-    label: "Vận động rất nhiều", 
-    description: "Tập thể dục rất mạnh & công việc thể chất", 
-    value: "EXTRA_ACTIVE",
-    icon: "🔥"
-  },
-];
+// Định nghĩa các mức độ hoạt động từ type definition
+const activityLevels = Object.values(ActivityLevel).map(value => ({
+  label: ACTIVITY_LEVEL_INFO[value].label,
+  description: ACTIVITY_LEVEL_INFO[value].description,
+  value: value,
+  icon: ACTIVITY_LEVEL_INFO[value].icon
+}));
 
 const UserGoalScreen = () => {
-  const [selectedActivityLevel, setSelectedActivityLevel] = useState("LIGHTLY_ACTIVE");
+  const [selectedActivityLevel, setSelectedActivityLevel] = useState<ActivityLevel>(ActivityLevel.LIGHTLY_ACTIVE);
   const [dailyStepsGoal, setDailyStepsGoal] = useState("10000");
   const [bedtime, setBedtime] = useState(() => {
     const date = new Date();

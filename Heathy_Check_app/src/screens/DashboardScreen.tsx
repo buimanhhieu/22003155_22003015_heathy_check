@@ -338,10 +338,6 @@ const DashboardScreen: React.FC = () => {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Highlights</Text>
-          <TouchableOpacity style={styles.viewMoreButton}>
-            <Text style={styles.viewMoreText}>View more</Text>
-            <MaterialIcons name="arrow-forward" size={16} color="#666" />
-          </TouchableOpacity>
         </View>
         
         <View style={styles.highlightsGrid}>
@@ -416,18 +412,22 @@ const DashboardScreen: React.FC = () => {
         </View>
         
         <View style={styles.weeklyGrid}>
+          {/* Steps - from database */}
           <View style={styles.weeklyCard}>
             <MaterialIcons name="directions-walk" size={20} color="#F44336" />
             <Text style={styles.weeklyValue}>{dashboardData.weeklyReport.totalSteps.toLocaleString()}</Text>
           </View>
+          {/* Workout - dummy data */}
           <View style={styles.weeklyCard}>
             <MaterialIcons name="fitness-center" size={20} color="#FFC107" />
-            <Text style={styles.weeklyValue}>{dashboardData.weeklyReport.formattedWorkoutDuration}</Text>
+            <Text style={styles.weeklyValue}>2h 30m</Text>
           </View>
+          {/* Water - dummy data */}
           <View style={styles.weeklyCard}>
             <MaterialIcons name="water-drop" size={20} color="#2196F3" />
-            <Text style={styles.weeklyValue}>{Math.round(dashboardData.weeklyReport.totalWater * 1000)} ml</Text>
+            <Text style={styles.weeklyValue}>12,500 ml</Text>
           </View>
+          {/* Sleep - from database */}
           <View style={styles.weeklyCard}>
             <MaterialIcons name="bedtime" size={20} color="#FFC107" />
             <Text style={styles.weeklyValue}>{dashboardData.weeklyReport.formattedSleepDuration}</Text>
