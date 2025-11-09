@@ -8,6 +8,8 @@ import {
   Alert,
   RefreshControl,
   StatusBar,
+  Platform,
+  Modal as RNModal,
 } from 'react-native';
 import {
   Text,
@@ -64,7 +66,41 @@ const ProfileScreen: React.FC = () => {
     if (userInfo?.profile?.dateOfBirth) {
       setDateOfBirth(new Date(userInfo.profile.dateOfBirth));
     }
-  }, [userInfo]);
+    // Chỉ cập nhật fullName khi userInfo thay đổi và modal không mở (tránh override khi đang chỉnh sửa)
+    if (userInfo?.fullName && !editModalVisible) {
+      setFullName(userInfo.fullName);
+    }
+  }, [userInfo, editModalVisible]);
+  
+  // Cập nhật form state khi mở modal (chỉ khi modal mới mở, không reset khi userInfo thay đổi)
+  useEffect(() => {
+    if (editModalVisible) {
+      console.log('🔄 Modal opened, initializing form with userInfo:', {
+        fullName: userInfo?.fullName,
+        email: userInfo?.email
+      });
+      if (userInfo) {
+        setFullName(userInfo.fullName || '');
+        setAvatar(userInfo.profile?.avatar || null);
+        setHeightCm(userInfo.profile?.heightCm?.toString() || '');
+        setWeightKg(userInfo.profile?.weightKg?.toString() || '');
+        setGender(userInfo.profile?.gender || 'MALE');
+        if (userInfo.profile?.dateOfBirth) {
+          setDateOfBirth(new Date(userInfo.profile.dateOfBirth));
+        }
+      }
+    }
+  }, [editModalVisible]); // Chỉ chạy khi editModalVisible thay đổi, không phụ thuộc userInfo
+  
+  // Debug: Log khi showDatePicker thay đổi
+  useEffect(() => {
+    console.log('📅 showDatePicker changed to:', showDatePicker);
+  }, [showDatePicker]);
+  
+  // Debug: Log khi dateOfBirth thay đổi
+  useEffect(() => {
+    console.log('📅 dateOfBirth changed to:', dateOfBirth, 'formatted:', formatDate(dateOfBirth));
+  }, [dateOfBirth]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -161,15 +197,41 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      setDateOfBirth(selectedDate);
+    console.log('📅 Date picker event:', event.type, 'selectedDate:', selectedDate);
+    
+    if (Platform.OS === 'android') {
+      // Android: DateTimePicker tự đóng sau khi chọn hoặc hủy
+      // Luôn đóng picker trước, sau đó mới cập nhật date nếu có
+      setShowDatePicker(false);
+      
+      if (event.type === 'set' && selectedDate) {
+        console.log('📅 Android: Date selected:', selectedDate);
+        setDateOfBirth(selectedDate);
+      } else if (event.type === 'dismissed') {
+        console.log('📅 Android: Date picker dismissed');
+      }
+    } else if (Platform.OS === 'ios') {
+      // iOS: DateTimePicker cập nhật liên tục khi scroll
+      // Chỉ cập nhật khi có selectedDate (không phải dismissed)
+      if (selectedDate && event.type !== 'dismissed') {
+        console.log('📅 iOS: Date updated:', selectedDate);
+        setDateOfBirth(selectedDate);
+      }
     }
+  };
+  
+  const handleDatePickerDone = () => {
+    console.log('📅 Date picker done, final date:', dateOfBirth);
+    setShowDatePicker(false);
   };
 
   const handleSaveProfile = async () => {
     if (!userInfo) {
       setError('Thông tin người dùng không tìm thấy.');
+      return;
+    }
+    if (!fullName || fullName.trim() === '') {
+      setError('Vui lòng nhập họ và tên.');
       return;
     }
     if (!heightCm || !weightKg) {
@@ -193,7 +255,8 @@ const ProfileScreen: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      await userApi.put(`/${userInfo.id}/profile`, {
+      console.log('📤 Sending profile update:', {
+        fullName,
         dateOfBirth: formatDate(dateOfBirth),
         avatar,
         gender,
@@ -201,9 +264,20 @@ const ProfileScreen: React.FC = () => {
         weightKg: weight,
       });
       
+      const response = await userApi.put(`/${userInfo.id}/profile`, {
+        dateOfBirth: formatDate(dateOfBirth),
+        fullName,
+        avatar,
+        gender,
+        heightCm: height,
+        weightKg: weight,
+      });
+      
+      console.log('✅ Profile update response:', response.data);
+      
       const updatedUserInfo = {
         ...userInfo,
-        fullName: fullName,
+        fullName: fullName, // Cập nhật fullName ở root level
         profile: {
           ...userInfo.profile,
           userId: userInfo.id,
@@ -216,11 +290,28 @@ const ProfileScreen: React.FC = () => {
       };
       
       await updateUserInfo(updatedUserInfo);
+      
+      // Reload profile từ server để đảm bảo dữ liệu đồng bộ
+      try {
+        const { data: profileData } = await userApi.get(`/${userInfo.id}/profile`);
+        const finalUpdatedInfo = {
+          ...updatedUserInfo,
+          fullName: profileData.fullName || updatedUserInfo.fullName,
+        };
+        await updateUserInfo(finalUpdatedInfo);
+      } catch (e) {
+        console.error('Error reloading profile:', e);
+      }
+      
       setEditModalVisible(false);
       Alert.alert('Thành công', 'Cập nhật thông tin thành công!');
-    } catch (e) {
-      setError('Cập nhật thông tin thất bại. Vui lòng thử lại.');
-      console.error(e);
+    } catch (e: any) {
+      console.error('❌ Error updating profile:', e);
+      console.error('Error response:', e.response?.data);
+      console.error('Error status:', e.response?.status);
+      const errorMessage = e.response?.data?.message || e.message || 'Cập nhật thông tin thất bại. Vui lòng thử lại.';
+      setError(errorMessage);
+      Alert.alert('Lỗi', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -289,6 +380,7 @@ const ProfileScreen: React.FC = () => {
   const bmiStatus = getBMIStatus(bmi);
 
   return (
+    <>
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       
@@ -316,12 +408,12 @@ const ProfileScreen: React.FC = () => {
           ) : (
             <Avatar.Text
               size={100}
-              label={userInfo?.fullName.charAt(0).toUpperCase() || 'U'}
+              label={(userInfo?.fullName || userInfo?.email || 'U').charAt(0).toUpperCase()}
               style={styles.avatarPlaceholder}
             />
           )}
-          <Text style={styles.userName}>{userInfo?.fullName}</Text>
-          <Text style={styles.userEmail}>{userInfo?.email}</Text>
+          <Text style={styles.userName}>{userInfo?.fullName || userInfo?.email || 'User'}</Text>
+          {/* <Text style={styles.userEmail}>{userInfo?.email}</Text> */}
         </View>
 
         {/* BMI Card */}
@@ -461,26 +553,44 @@ const ProfileScreen: React.FC = () => {
             {/* Full Name */}
             <TextInput
               label="Họ và tên"
-              value={fullName}
-              onChangeText={setFullName}
+              value={fullName || ''}
+              onChangeText={(text) => {
+                console.log('📝 fullName changed:', text);
+                setFullName(text);
+              }}
               mode="outlined"
               style={styles.modalInput}
               activeOutlineColor="#00BCD4"
-              disabled
+              editable={true}
+              placeholder="Nhập họ và tên"
+              keyboardType="default"
+              autoCapitalize="words"
+              returnKeyType="next"
             />
 
             {/* Date of Birth */}
-            <TouchableOpacity onPress={() => setShowDatePicker(true)}>
-              <TextInput
-                label="Ngày sinh"
-                value={formatDate(dateOfBirth)}
-                mode="outlined"
-                style={styles.modalInput}
-                activeOutlineColor="#00BCD4"
-                editable={false}
-                right={<TextInput.Icon icon="calendar" />}
-              />
-            </TouchableOpacity>
+            <View style={styles.modalInput}>
+              <TouchableOpacity 
+                onPress={() => {
+                  console.log('📅 Opening date picker, current date:', dateOfBirth);
+                  console.log('📅 showDatePicker will be set to:', true);
+                  setShowDatePicker(true);
+                }}
+                activeOpacity={0.7}
+                style={{ width: '100%' }}
+              >
+                <TextInput
+                  label="Ngày sinh"
+                  value={formatDate(dateOfBirth)}
+                  mode="outlined"
+                  style={{ backgroundColor: '#fff' }}
+                  activeOutlineColor="#00BCD4"
+                  editable={false}
+                  right={<TextInput.Icon icon="calendar" />}
+                  pointerEvents="none"
+                />
+              </TouchableOpacity>
+            </View>
 
             {/* Gender */}
             <Text style={styles.modalLabel}>Giới tính</Text>
@@ -677,18 +787,64 @@ const ProfileScreen: React.FC = () => {
         </Modal>
       </Portal>
 
-      {/* Date Picker */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={dateOfBirth}
-          mode="date"
-          display="default"
-          maximumDate={new Date()}
-          minimumDate={new Date(1900, 0, 1)}
-          onChange={handleDateChange}
-        />
-      )}
+      {/* Date Picker Modal for iOS - Đặt trong Portal để hiển thị trên Modal */}
+      <Portal>
+        {Platform.OS === 'ios' && showDatePicker && (
+          <RNModal
+            visible={showDatePicker}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => {
+              console.log('📅 Date picker onRequestClose');
+              setShowDatePicker(false);
+            }}
+          >
+            <View style={styles.datePickerModalOverlay}>
+              <View style={styles.datePickerModalContent}>
+                <View style={styles.datePickerModalHeader}>
+                  <TouchableOpacity onPress={() => {
+                    console.log('📅 Date picker cancelled');
+                    setShowDatePicker(false);
+                  }}>
+                    <Text style={styles.datePickerModalCancel}>Hủy</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.datePickerModalTitle}>Chọn ngày sinh</Text>
+                  <TouchableOpacity onPress={handleDatePickerDone}>
+                    <Text style={styles.datePickerModalDone}>Xong</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.datePickerContainer}>
+                  <DateTimePicker
+                    value={dateOfBirth}
+                    mode="date"
+                    display="spinner"
+                    maximumDate={new Date()}
+                    minimumDate={new Date(1900, 0, 1)}
+                    textColor="#1E232C"
+                    themeVariant="light"
+                    onChange={handleDateChange}
+                  />
+                </View>
+              </View>
+            </View>
+          </RNModal>
+        )}
+      </Portal>
+
     </SafeAreaView>
+    
+    {/* Date Picker for Android - Render ở ngoài SafeAreaView để đảm bảo hiển thị trên Modal */}
+    {Platform.OS === 'android' && showDatePicker && (
+      <DateTimePicker
+        value={dateOfBirth}
+        mode="date"
+        display="default"
+        maximumDate={new Date()}
+        minimumDate={new Date(1900, 0, 1)}
+        onChange={handleDateChange}
+      />
+    )}
+    </>
   );
 };
 
@@ -966,6 +1122,45 @@ const styles = StyleSheet.create({
     marginVertical: 40,
     padding: 24,
     borderRadius: 16,
+  },
+  datePickerModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  datePickerModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 34,
+    maxHeight: '80%',
+  },
+  datePickerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8ECF4',
+  },
+  datePickerModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1E232C',
+  },
+  datePickerModalCancel: {
+    fontSize: 16,
+    color: '#6A707C',
+  },
+  datePickerModalDone: {
+    fontSize: 16,
+    color: '#00BCD4',
+    fontWeight: '600',
+  },
+  datePickerContainer: {
+    backgroundColor: '#fff',
+    paddingVertical: 20,
   },
 });
 

@@ -141,6 +141,18 @@ public class UserService {
             userProfile.setUser(user);
         }
 
+        // Cập nhật fullName trong User entity nếu có
+        System.out.println("[UserService] Updating profile for userId: " + userId);
+        System.out.println("[UserService] Received fullName: " + profileDto.getFullName());
+        if (profileDto.getFullName() != null && !profileDto.getFullName().trim().isEmpty()) {
+            System.out.println("[UserService] Updating fullName to: " + profileDto.getFullName());
+            user.setFullName(profileDto.getFullName());
+            User savedUser = userRepository.save(user);
+            System.out.println("[UserService] User saved with fullName: " + savedUser.getFullName());
+        } else {
+            System.out.println("[UserService] fullName is null or empty, skipping update");
+        }
+
         userProfile.setDateOfBirth(profileDto.getDateOfBirth());
         userProfile.setAvatar(profileDto.getAvatar());
         userProfile.setHeightCm(profileDto.getHeightCm());

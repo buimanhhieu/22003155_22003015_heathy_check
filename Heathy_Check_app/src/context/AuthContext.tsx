@@ -64,26 +64,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       await AsyncStorage.setItem("userToken", token);
       await AsyncStorage.setItem("userInfo", JSON.stringify(fullUserInfo));
 
-      // Load avatar từ server nếu có
+      // Load profile từ server để lấy đầy đủ thông tin
       try {
         const { data: profileData } = await userApi.get(`/${userData.id}/profile`);
-        if (profileData.avatar) {
-          const updatedInfo = {
-            ...fullUserInfo,
-            profile: {
-              userId: userData.id,
-              dateOfBirth: profileData.dateOfBirth || '',
-              avatar: profileData.avatar,
-              gender: profileData.gender || '',
-              heightCm: profileData.heightCm || 0,
-              weightKg: profileData.weightKg || 0
-            }
-          };
-          setUserInfo(updatedInfo);
-          await AsyncStorage.setItem("userInfo", JSON.stringify(updatedInfo));
-        }
+        const updatedInfo = {
+          ...fullUserInfo,
+          fullName: profileData.fullName || fullUserInfo.fullName, // Cập nhật fullName từ profile
+          profile: {
+            userId: userData.id,
+            dateOfBirth: profileData.dateOfBirth || '',
+            avatar: profileData.avatar,
+            gender: profileData.gender || '',
+            heightCm: profileData.heightCm || 0,
+            weightKg: profileData.weightKg || 0
+          }
+        };
+        setUserInfo(updatedInfo);
+        await AsyncStorage.setItem("userInfo", JSON.stringify(updatedInfo));
       } catch (e) {
-        // Avatar không có hoặc lỗi load, không ảnh hưởng đến login
+        // Profile không có hoặc lỗi load, không ảnh hưởng đến login
+        console.log("Error loading profile:", e);
       }
 
       // Kiểm tra onboarding
@@ -148,6 +148,30 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           const info = JSON.parse(infoString) as UserInfo;
           setUserToken(token);
           setUserInfo(info);
+
+          // Load profile để đảm bảo fullName được cập nhật
+          try {
+            const { data: profileData } = await userApi.get(`/${info.id}/profile`);
+            if (profileData.fullName && profileData.fullName !== info.fullName) {
+              const updatedInfo = {
+                ...info,
+                fullName: profileData.fullName,
+                profile: {
+                  userId: info.id,
+                  dateOfBirth: profileData.dateOfBirth || '',
+                  avatar: profileData.avatar,
+                  gender: profileData.gender || '',
+                  heightCm: profileData.heightCm || 0,
+                  weightKg: profileData.weightKg || 0
+                }
+              };
+              setUserInfo(updatedInfo);
+              await AsyncStorage.setItem("userInfo", JSON.stringify(updatedInfo));
+            }
+          } catch (e) {
+            // Không ảnh hưởng nếu không load được profile
+            console.log("Error loading profile on startup:", e);
+          }
 
           const onboardingKey = `onboardingShown:${info.id}`;
           const alreadyShown = await AsyncStorage.getItem(onboardingKey);
