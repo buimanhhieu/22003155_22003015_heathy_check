@@ -9,6 +9,8 @@ import java.time.LocalDate;
 @Data
 public class UserProfileUpdateDTO {
 
+    private String fullName;
+
     @NotNull(message = "Date of birth cannot be null.")
     private LocalDate dateOfBirth;
 

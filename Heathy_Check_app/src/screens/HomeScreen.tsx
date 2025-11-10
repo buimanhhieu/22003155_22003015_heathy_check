@@ -36,6 +36,55 @@ const HomeScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'votes'>('newest');
 
+  // Dummy data for Collection
+  const [collectionData, setCollectionData] = useState<Article[]>([
+    {
+      id: 1001,
+      title: 'Healthy Breakfast Ideas for Busy Mornings',
+      content: 'Start your day right with these quick and nutritious breakfast options...',
+      categoryName: 'Nutrition',
+      voteCount: 245,
+      publishedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      isVoted: false,
+    },
+    {
+      id: 1002,
+      title: '10-Minute Morning Yoga Routine',
+      content: 'A simple yoga sequence to energize your body and mind...',
+      categoryName: 'Sports',
+      voteCount: 189,
+      publishedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      isVoted: true,
+    },
+    {
+      id: 1003,
+      title: 'Running Tips for Beginners',
+      content: 'Everything you need to know to start your running journey...',
+      categoryName: 'Running',
+      voteCount: 312,
+      publishedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      isVoted: false,
+    },
+    {
+      id: 1004,
+      title: 'Work-Life Balance: Finding Your Rhythm',
+      content: 'Strategies to maintain a healthy balance between work and personal life...',
+      categoryName: 'Lifestyle',
+      voteCount: 156,
+      publishedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      isVoted: false,
+    },
+    {
+      id: 1005,
+      title: 'Superfoods You Should Add to Your Diet',
+      content: 'Discover nutrient-dense foods that can boost your health...',
+      categoryName: 'Nutrition',
+      voteCount: 278,
+      publishedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+      isVoted: true,
+    },
+  ]);
+
   const loadArticles = useCallback(async () => {
     if (!userInfo?.token) {
       setLoading(false);
@@ -123,6 +172,26 @@ const HomeScreen: React.FC = () => {
   const handleVote = async (article: Article) => {
     if (!userInfo?.token) return;
 
+    // Check if article is from collection (dummy data)
+    const isCollectionArticle = collectionData.some(item => item.id === article.id);
+    
+    if (isCollectionArticle) {
+      // Update collection data locally
+      setCollectionData(prevData =>
+        prevData.map(item =>
+          item.id === article.id
+            ? {
+                ...item,
+                isVoted: !item.isVoted,
+                voteCount: item.isVoted ? item.voteCount - 1 : item.voteCount + 1,
+              }
+            : item
+        )
+      );
+      return;
+    }
+
+    // Handle vote for real articles from API
     try {
       if (article.isVoted) {
         await articleApi.unvoteArticle(article.id, userInfo.token);
@@ -345,20 +414,10 @@ const HomeScreen: React.FC = () => {
                         {article.title}
                       </Text>
                       <View style={styles.blogFooter}>
-                        <TouchableOpacity
-                          style={styles.blogVotes}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            handleVote(article);
-                          }}
-                        >
-                          <MaterialIcons 
-                            name={article.isVoted ? "thumb-up" : "thumb-up-outline"} 
-                            size={16} 
-                            color={article.isVoted ? categoryColor : "#666"} 
-                          />
+                        <View style={styles.blogVotes}>
+                          <MaterialIcons name="thumb-up" size={16} color="#666" />
                           <Text style={styles.blogVotesText}>{article.voteCount} votes</Text>
-                        </TouchableOpacity>
+                        </View>
                         <TouchableOpacity 
                           style={styles.tellMeMoreButton}
                           onPress={() => handleArticlePress(article)}
@@ -384,7 +443,51 @@ const HomeScreen: React.FC = () => {
               <MaterialIcons name="arrow-forward" size={16} color="#666" />
             </TouchableOpacity>
           </View>
-          {/* Collection content can be added here */}
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.blogsScrollView}
+            contentContainerStyle={styles.blogsContent}
+          >
+            {collectionData.map((article) => {
+              const categoryColor = getCategoryColor(article.categoryName);
+              const categoryIcon = getCategoryIcon(article.categoryName);
+              
+              return (
+                <TouchableOpacity
+                  key={article.id}
+                  style={styles.blogCard}
+                  onPress={() => handleArticlePress(article)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.blogImageContainer, { backgroundColor: categoryColor }]}>
+                    <View style={styles.blogImagePlaceholder}>
+                      <MaterialIcons name={categoryIcon as any} size={40} color="white" />
+                    </View>
+                  </View>
+                  <View style={styles.blogContent}>
+                    <Text style={styles.blogCategory}>{article.categoryName}</Text>
+                    <Text style={styles.blogTitle} numberOfLines={2}>
+                      {article.title}
+                    </Text>
+                    <View style={styles.blogFooter}>
+                      <View style={styles.blogVotes}>
+                        <MaterialIcons name="thumb-up" size={16} color="#666" />
+                        <Text style={styles.blogVotesText}>{article.voteCount} votes</Text>
+                      </View>
+                      <TouchableOpacity 
+                        style={styles.tellMeMoreButton}
+                        onPress={() => handleArticlePress(article)}
+                      >
+                        <Text style={styles.tellMeMoreText}>Tell me more</Text>
+                        <MaterialIcons name="arrow-forward" size={16} color="#2196F3" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
       </ScrollView>
     </SafeAreaView>
