@@ -44,11 +44,16 @@ const AllHealthDataScreen: React.FC = () => {
     loadDashboardData();
   }, []);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (forceRefresh: boolean = false) => {
     if (!userInfo?.id || !userInfo?.token) return;
 
+    // Nếu forceRefresh, thêm delay nhỏ để đảm bảo backend cache đã được invalidate
+    if (forceRefresh) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
     try {
-      const data = await dashboardApi.getDashboard(userInfo.id, userInfo.token);
+      const data = await dashboardApi.getDashboard(userInfo.id, userInfo.token, forceRefresh);
       setDashboardData(data);
     } catch (error) {
       console.error('Error loading dashboard:', error);
@@ -299,8 +304,8 @@ const AllHealthDataScreen: React.FC = () => {
 
       console.log('✅ Cycle tracking API call successful');
       
-      // Reload dashboard data để cập nhật UI
-      await loadDashboardData();
+      // Reload dashboard data với force refresh để bypass cache
+      await loadDashboardData(true);
       
       setShowCycleModal(false);
       Alert.alert('Thành công', 'Đã cập nhật thông tin chu kỳ kinh nguyệt');

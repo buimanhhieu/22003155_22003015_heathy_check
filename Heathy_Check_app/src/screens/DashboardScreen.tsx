@@ -49,16 +49,21 @@ const DashboardScreen: React.FC = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (forceRefresh: boolean = false) => {
     if (!userInfo?.id || !userInfo?.token) {
       console.log('❌ Missing userInfo:', { id: userInfo?.id, hasToken: !!userInfo?.token });
       setLoading(false);
       return;
     }
 
-    console.log('🔄 Loading dashboard data for user:', userInfo.id);
+    // Nếu forceRefresh, thêm delay nhỏ để đảm bảo backend cache đã được invalidate
+    if (forceRefresh) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    console.log('🔄 Loading dashboard data for user:', userInfo.id, forceRefresh ? '(force refresh)' : '');
     try {
-      const data = await dashboardApi.getDashboard(userInfo.id, userInfo.token);
+      const data = await dashboardApi.getDashboard(userInfo.id, userInfo.token, forceRefresh);
       console.log('✅ Dashboard data loaded:', data);
       setDashboardData(data);
     } catch (error: any) {
@@ -195,8 +200,8 @@ const DashboardScreen: React.FC = () => {
 
       console.log('✅ Cycle tracking API call successful');
       
-      // Reload dashboard data để cập nhật UI
-      await loadDashboardData();
+      // Reload dashboard data với force refresh để bypass cache
+      await loadDashboardData(true);
       
       setShowCycleModal(false);
       Alert.alert('Thành công', 'Đã cập nhật thông tin chu kỳ kinh nguyệt');

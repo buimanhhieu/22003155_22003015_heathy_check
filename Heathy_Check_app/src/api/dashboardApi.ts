@@ -68,11 +68,16 @@ export interface DashboardData {
 }
 
 export const dashboardApi = {
-    getDashboard: async (userId: number, token: string): Promise<DashboardData> => {
+    getDashboard: async (userId: number, token: string, forceRefresh: boolean = false): Promise<DashboardData> => {
+        // Thêm cache busting parameter nếu forceRefresh = true
+        const params = forceRefresh ? { _t: Date.now() } : {};
         const response = await apiClient.get(`/users/${userId}/dashboard`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
+                // Thêm header để bypass cache ở client side
+                ...(forceRefresh && { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }),
             },
+            params: params,
         });
         return response.data;
     },
@@ -81,61 +86,37 @@ export const dashboardApi = {
         lastCycleDate: string;
         cycleLength: number;
     }): Promise<any> => {
-        // Tạo mới cycle tracking - thử endpoint goals trước (có thể backend chưa có menstrual-cycle endpoint)
-        console.log('🔧 CREATE API - Attempting PUT to goals endpoint with cycle data');
-        console.log('URL:', `${API_BASE_URL}/users/${userId}/goals`);
+        // Tạo mới cycle tracking - gọi trực tiếp đến menstrual-cycle endpoint
+        console.log('🔧 CREATE API - Calling menstrual-cycle endpoint');
+        console.log('URL:', `${API_BASE_URL}/users/${userId}/menstrual-cycle`);
         console.log('Data:', {
-            dailyStepsGoal: 10000, // Default value
-            bedtime: "22:00:00",   // Default value  
-            wakeup: "06:00:00",    // Default value
-            activityLevel: ActivityLevel.MODERATELY_ACTIVE, // Default value
-            lastCycleDate: cycleData.lastCycleDate,
+            startDate: cycleData.lastCycleDate,
             cycleLength: cycleData.cycleLength
         });
         console.log('Token preview:', token ? token.substring(0, 20) + '...' : 'No token');
 
         try {
-            // Thử endpoint goals với cycle data
-            const response = await apiClient.put(`/users/${userId}/goals`, {
-                dailyStepsGoal: 10000,
-                bedtime: "22:00:00",
-                wakeup: "06:00:00",
-                activityLevel: ActivityLevel.MODERATELY_ACTIVE,
-                lastCycleDate: cycleData.lastCycleDate,
+            // Tính toán endDate dựa trên startDate + 5 ngày (độ dài chu kỳ kinh nguyệt)
+            const startDate = new Date(cycleData.lastCycleDate);
+            const endDate = new Date(startDate.getTime() + 5 * 24 * 60 * 60 * 1000);
+
+            const response = await apiClient.post(`/users/${userId}/menstrual-cycle`, {
+                startDate: cycleData.lastCycleDate,
+                endDate: endDate.toISOString().split('T')[0],
                 cycleLength: cycleData.cycleLength
             }, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
                 },
             });
-            console.log('✅ CREATE API - PUT to goals successful');
+            console.log('✅ CREATE API - menstrual-cycle endpoint successful');
+            console.log('Response data:', response.data);
             return response.data;
         } catch (error: any) {
-            console.log('❌ CREATE API - PUT to goals failed:', error.response?.status, error.response?.data);
-
-            // Nếu goals endpoint không hoạt động, thử menstrual-cycle endpoint
-            try {
-                console.log('🔄 CREATE API - Trying fallback to menstrual-cycle endpoint');
-                // Tính toán endDate dựa trên startDate + 5 ngày (độ dài chu kỳ kinh nguyệt)
-                const startDate = new Date(cycleData.lastCycleDate);
-                const endDate = new Date(startDate.getTime() + 5 * 24 * 60 * 60 * 1000);
-
-                const response = await apiClient.post(`/users/${userId}/menstrual-cycle`, {
-                    startDate: cycleData.lastCycleDate,
-                    endDate: endDate.toISOString().split('T')[0],
-                    cycleLength: cycleData.cycleLength
-                }, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
-                console.log('✅ CREATE API - Fallback to menstrual-cycle successful');
-                return response.data;
-            } catch (fallbackError: any) {
-                console.log('❌ CREATE API - Fallback to menstrual-cycle also failed:', fallbackError.response?.status, fallbackError.response?.data);
-                throw fallbackError;
-            }
+            console.log('❌ CREATE API - menstrual-cycle endpoint failed:', error.response?.status, error.response?.data);
+            console.log('Error message:', error.message);
+            throw error;
         }
     },
 
@@ -143,61 +124,37 @@ export const dashboardApi = {
         lastCycleDate: string;
         cycleLength: number;
     }): Promise<any> => {
-        // Cập nhật cycle tracking - thử endpoint goals trước (có thể backend chưa có menstrual-cycle endpoint)
-        console.log('🔧 UPDATE API - Attempting PUT to goals endpoint with cycle data');
-        console.log('URL:', `${API_BASE_URL}/users/${userId}/goals`);
+        // Cập nhật cycle tracking - gọi trực tiếp đến menstrual-cycle endpoint
+        console.log('🔧 UPDATE API - Calling menstrual-cycle endpoint');
+        console.log('URL:', `${API_BASE_URL}/users/${userId}/menstrual-cycle`);
         console.log('Data:', {
-            dailyStepsGoal: 10000, // Default value
-            bedtime: "22:00:00",   // Default value  
-            wakeup: "06:00:00",    // Default value
-            activityLevel: ActivityLevel.MODERATELY_ACTIVE, // Default value
-            lastCycleDate: cycleData.lastCycleDate,
+            startDate: cycleData.lastCycleDate,
             cycleLength: cycleData.cycleLength
         });
         console.log('Token preview:', token ? token.substring(0, 20) + '...' : 'No token');
 
         try {
-            // Thử endpoint goals với cycle data
-            const response = await apiClient.put(`/users/${userId}/goals`, {
-                dailyStepsGoal: 10000,
-                bedtime: "22:00:00",
-                wakeup: "06:00:00",
-                activityLevel: ActivityLevel.MODERATELY_ACTIVE,
-                lastCycleDate: cycleData.lastCycleDate,
+            // Tính toán endDate dựa trên startDate + 5 ngày (độ dài chu kỳ kinh nguyệt)
+            const startDate = new Date(cycleData.lastCycleDate);
+            const endDate = new Date(startDate.getTime() + 5 * 24 * 60 * 60 * 1000);
+
+            const response = await apiClient.put(`/users/${userId}/menstrual-cycle`, {
+                startDate: cycleData.lastCycleDate,
+                endDate: endDate.toISOString().split('T')[0],
                 cycleLength: cycleData.cycleLength
             }, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
                 },
             });
-            console.log('✅ UPDATE API - PUT to goals successful');
+            console.log('✅ UPDATE API - menstrual-cycle endpoint successful');
+            console.log('Response data:', response.data);
             return response.data;
         } catch (error: any) {
-            console.log('❌ UPDATE API - PUT to goals failed:', error.response?.status, error.response?.data);
-
-            // Nếu goals endpoint không hoạt động, thử menstrual-cycle endpoint
-            try {
-                console.log('🔄 UPDATE API - Trying fallback to menstrual-cycle endpoint');
-                // Tính toán endDate dựa trên startDate + 5 ngày (độ dài chu kỳ kinh nguyệt)
-                const startDate = new Date(cycleData.lastCycleDate);
-                const endDate = new Date(startDate.getTime() + 5 * 24 * 60 * 60 * 1000);
-
-                const response = await apiClient.put(`/users/${userId}/menstrual-cycle`, {
-                    startDate: cycleData.lastCycleDate,
-                    endDate: endDate.toISOString().split('T')[0],
-                    cycleLength: cycleData.cycleLength
-                }, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
-                console.log('✅ UPDATE API - Fallback to menstrual-cycle successful');
-                return response.data;
-            } catch (fallbackError: any) {
-                console.log('❌ UPDATE API - Fallback to menstrual-cycle also failed:', fallbackError.response?.status, fallbackError.response?.data);
-                throw fallbackError;
-            }
+            console.log('❌ UPDATE API - menstrual-cycle endpoint failed:', error.response?.status, error.response?.data);
+            console.log('Error message:', error.message);
+            throw error;
         }
     },
 };

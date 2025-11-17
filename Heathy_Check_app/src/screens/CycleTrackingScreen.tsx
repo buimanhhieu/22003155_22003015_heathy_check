@@ -83,16 +83,66 @@ const CycleTrackingScreen: React.FC = () => {
     loadCycleData();
   }, []);
 
-  const loadCycleData = async () => {
-    if (!userInfo?.id || !userInfo?.token) return;
+  const loadCycleData = async (forceRefresh: boolean = false) => {
+    if (!userInfo?.id || !userInfo?.token) {
+      console.log('⚠️ Cannot load cycle data: missing userInfo');
+      return;
+    }
+
+    // Nếu forceRefresh, thêm delay nhỏ để đảm bảo backend cache đã được invalidate
+    if (forceRefresh) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
 
     try {
-      const data = await dashboardApi.getDashboard(userInfo.id, userInfo.token);
-      if (data?.highlights?.cycleTracking?.daysRemaining) {
-        setDaysUntilPeriod(data.highlights.cycleTracking.daysRemaining);
+      console.log('🔄 Loading cycle data, forceRefresh:', forceRefresh);
+      const data = await dashboardApi.getDashboard(userInfo.id, userInfo.token, forceRefresh);
+      console.log('📊 Dashboard data received:', data?.highlights?.cycleTracking);
+      
+      if (data?.highlights?.cycleTracking) {
+        // Cập nhật daysRemaining
+        if (data.highlights.cycleTracking.daysRemaining !== undefined) {
+          setDaysUntilPeriod(data.highlights.cycleTracking.daysRemaining);
+          console.log('✅ Updated daysUntilPeriod:', data.highlights.cycleTracking.daysRemaining);
+        }
+        
+        // Cập nhật lastPeriodDate từ lastCycleDate
+        const lastCycleDate = data.highlights.cycleTracking.lastCycleDate;
+        console.log('📅 lastCycleDate from dashboard:', lastCycleDate);
+        
+        if (lastCycleDate && lastCycleDate !== "Chưa có" && lastCycleDate !== "0001-01-03") {
+          // Parse ngày từ format dd/MM/yyyy hoặc yyyy-MM-dd
+          let parsedDate: Date;
+          if (lastCycleDate.includes('/')) {
+            // Format dd/MM/yyyy (ví dụ: 15/01/2024)
+            const [day, month, year] = lastCycleDate.split('/');
+            parsedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            console.log('📅 Parsing date from dd/MM/yyyy:', { day, month, year, parsedDate });
+          } else if (lastCycleDate.includes('-')) {
+            // Format yyyy-MM-dd (ISO)
+            parsedDate = new Date(lastCycleDate + 'T00:00:00'); // Thêm time để tránh timezone issues
+            console.log('📅 Parsing date from yyyy-MM-dd:', lastCycleDate, parsedDate);
+          } else {
+            // Fallback: try to parse as date
+            parsedDate = new Date(lastCycleDate);
+            console.log('📅 Parsing date as fallback:', lastCycleDate, parsedDate);
+          }
+          
+          // Validate date
+          if (!isNaN(parsedDate.getTime())) {
+            setLastPeriodDate(parsedDate);
+            console.log('✅ Updated lastPeriodDate state to:', parsedDate.toLocaleDateString('vi-VN'));
+          } else {
+            console.warn('⚠️ Invalid date parsed:', lastCycleDate, parsedDate);
+          }
+        } else {
+          console.log('⚠️ lastCycleDate is empty or invalid:', lastCycleDate);
+        }
+      } else {
+        console.warn('⚠️ No cycle tracking data in dashboard response');
       }
     } catch (error) {
-      console.error('Error loading cycle data:', error);
+      console.error('❌ Error loading cycle data:', error);
     }
   };
 
@@ -118,18 +168,30 @@ const CycleTrackingScreen: React.FC = () => {
 
     try {
       const dateString = lastPeriodDate.toISOString().split('T')[0];
+      console.log('📅 Saving cycle tracking with date:', dateString);
+      
       // Sử dụng cycle length mặc định là 28
       await dashboardApi.updateCycleTracking(userInfo.id, userInfo.token, {
         lastCycleDate: dateString,
         cycleLength: 28,
       });
       
-      Alert.alert('Thành công', 'Đã cập nhật ngày có kinh gần nhất');
+      console.log('✅ Cycle tracking updated successfully, date:', lastPeriodDate);
+      
+      // Đóng modal trước
       setShowEditPeriodModal(false);
-      loadCycleData(); // Reload data
+      
+      // Chờ một chút để đảm bảo backend đã invalidate cache
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Reload data với force refresh để bypass cache và sync với server
+      await loadCycleData(true);
+      
+      Alert.alert('Thành công', 'Đã cập nhật ngày có kinh gần nhất');
     } catch (error: any) {
-      console.error('Error updating cycle:', error);
-      Alert.alert('Lỗi', 'Không thể cập nhật thông tin. Vui lòng thử lại.');
+      console.error('❌ Error updating cycle:', error);
+      console.error('Error response:', error.response?.data);
+      Alert.alert('Lỗi', `Không thể cập nhật thông tin: ${error.response?.data?.message || error.message}`);
     }
   };
 

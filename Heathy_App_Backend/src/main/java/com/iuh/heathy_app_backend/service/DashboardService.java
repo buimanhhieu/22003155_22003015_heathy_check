@@ -46,18 +46,29 @@ public class DashboardService {
     private static final long DASHBOARD_CACHE_TTL = 10; // 10 phút
     
     public DashboardDTO getDashboardData(Long userId) {
-        // 1. Kiểm tra cache trước
+        return getDashboardData(userId, false);
+    }
+    
+    public DashboardDTO getDashboardData(Long userId, boolean forceRefresh) {
+        // 1. Kiểm tra cache trước (skip nếu forceRefresh = true)
         String cacheKey = DASHBOARD_CACHE_KEY + userId;
-        Object cached = redisTemplate.opsForValue().get(cacheKey);
         
-        if (cached != null) {
-            System.out.println("[DashboardService] Cache HIT for userId: " + userId);
-            // Convert từ LinkedHashMap hoặc Object sang DashboardDTO
-            if (cached instanceof DashboardDTO) {
-                return (DashboardDTO) cached;
-            } else {
-                return objectMapper.convertValue(cached, DashboardDTO.class);
+        if (!forceRefresh) {
+            Object cached = redisTemplate.opsForValue().get(cacheKey);
+            
+            if (cached != null) {
+                System.out.println("[DashboardService] Cache HIT for userId: " + userId);
+                // Convert từ LinkedHashMap hoặc Object sang DashboardDTO
+                if (cached instanceof DashboardDTO) {
+                    return (DashboardDTO) cached;
+                } else {
+                    return objectMapper.convertValue(cached, DashboardDTO.class);
+                }
             }
+        } else {
+            System.out.println("[DashboardService] Force refresh requested for userId: " + userId);
+            // Xóa cache nếu forceRefresh = true
+            redisTemplate.delete(cacheKey);
         }
         
         System.out.println("[DashboardService] Cache MISS for userId: " + userId);

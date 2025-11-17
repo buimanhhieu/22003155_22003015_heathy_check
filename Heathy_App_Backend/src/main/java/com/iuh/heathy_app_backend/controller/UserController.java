@@ -81,8 +81,13 @@ public class UserController {
     }
 
     @GetMapping("/{id}/dashboard")
-    public ResponseEntity<DashboardDTO> getDashboard(@PathVariable Long id) {
-        DashboardDTO dashboard = dashboardService.getDashboardData(id);
+    public ResponseEntity<DashboardDTO> getDashboard(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "false") boolean forceRefresh,
+            @RequestParam(required = false) Long _t) {
+        // Nếu có parameter _t (timestamp từ frontend) hoặc forceRefresh = true, bypass cache
+        boolean bypassCache = forceRefresh || (_t != null && _t > 0);
+        DashboardDTO dashboard = dashboardService.getDashboardData(id, bypassCache);
         return ResponseEntity.ok(dashboard);
     }
 
