@@ -149,7 +149,9 @@ const UserGoalScreen = () => {
                 <TouchableOpacity 
                   style={styles.timeButton}
                   onPress={() => {
-                    setTempBedtime(bedtime);
+                    // Tạo Date object mới để tránh reference issue
+                    const newDate = new Date(bedtime);
+                    setTempBedtime(newDate);
                     setShowBedtimePicker(true);
                   }}
                 >
@@ -163,7 +165,9 @@ const UserGoalScreen = () => {
                 <TouchableOpacity 
                   style={styles.timeButton}
                   onPress={() => {
-                    setTempWakeup(wakeup);
+                    // Tạo Date object mới để tránh reference issue
+                    const newDate = new Date(wakeup);
+                    setTempWakeup(newDate);
                     setShowWakeupPicker(true);
                   }}
                 >
@@ -329,32 +333,42 @@ const UserGoalScreen = () => {
       {/* Time Picker for Android */}
       {Platform.OS === 'android' && (
         <>
-          {showBedtimePicker && (
+          {showBedtimePicker && tempBedtime && (
             <DateTimePicker
-              value={bedtime}
+              key={`bedtime-${tempBedtime.getTime()}`}
+              value={tempBedtime}
               mode="time"
               is24Hour={true}
               display="default"
               onChange={(event, selectedTime) => {
-                if (event.type === 'set' && selectedTime) {
-                  setBedtime(selectedTime);
-                }
                 setShowBedtimePicker(false);
+                if (event.type === 'set' && selectedTime) {
+                  // Tạo Date object mới để đảm bảo state được cập nhật
+                  const newDate = new Date(selectedTime);
+                  setBedtime(newDate);
+                  console.log('Bedtime updated to:', formatTime(newDate));
+                }
+                setTempBedtime(null);
               }}
             />
           )}
 
-          {showWakeupPicker && (
+          {showWakeupPicker && tempWakeup && (
             <DateTimePicker
-              value={wakeup}
+              key={`wakeup-${tempWakeup.getTime()}`}
+              value={tempWakeup}
               mode="time"
               is24Hour={true}
               display="default"
               onChange={(event, selectedTime) => {
-                if (event.type === 'set' && selectedTime) {
-                  setWakeup(selectedTime);
-                }
                 setShowWakeupPicker(false);
+                if (event.type === 'set' && selectedTime) {
+                  // Tạo Date object mới để đảm bảo state được cập nhật
+                  const newDate = new Date(selectedTime);
+                  setWakeup(newDate);
+                  console.log('Wakeup updated to:', formatTime(newDate));
+                }
+                setTempWakeup(null);
               }}
             />
           )}

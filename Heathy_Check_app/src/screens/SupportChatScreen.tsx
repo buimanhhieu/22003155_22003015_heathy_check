@@ -49,7 +49,6 @@ const SupportChatScreen: React.FC = () => {
   }, []);
 
   const handleSendMessage = useCallback(async () => {
-    // Prevent duplicate requests
     if (!canSend || !userInfo?.id || isSending) {
       return;
     }
